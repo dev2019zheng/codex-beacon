@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "Use cross-layer thinking for Rust core, Tauri shell, and frontend contract boundaries."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Status snapshots cross Rust, IPC, and UI layers."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Rust core owns backend-like status logic and tests."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Tauri shell UI and theme controls are frontend surfaces."}
+{"file": "docs/architecture-tauri-rust-core.md", "reason": "Implementation must follow the documented core/shell/theme contract."}

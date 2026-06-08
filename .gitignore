@@ -1,10 +1,12 @@
 .DS_Store
 .env
 .omx/
+.tmp-visual/
 
 node_modules/
 dist/
 build/
 target/
+*.tsbuildinfo
 
 *.log

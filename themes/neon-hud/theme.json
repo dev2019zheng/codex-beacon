@@ -1,0 +1,12 @@
+{
+  "id": "neon-hud",
+  "name": "Neon HUD",
+  "description": "Glow-forward HUD shell for completion and waiting events.",
+  "version": "0.1.0",
+  "entry": "theme.css",
+  "capabilities": {
+    "mascot": false,
+    "audio": false,
+    "strongAlertAnimation": true
+  }
+}

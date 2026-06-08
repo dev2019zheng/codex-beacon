@@ -1,0 +1,12 @@
+{
+  "id": "minimal-card",
+  "name": "Minimal Card",
+  "description": "Default compact card and capsule HUD theme.",
+  "version": "0.1.0",
+  "entry": "theme.css",
+  "capabilities": {
+    "mascot": false,
+    "audio": false,
+    "strongAlertAnimation": true
+  }
+}

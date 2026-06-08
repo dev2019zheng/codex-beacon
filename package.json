@@ -1,0 +1,13 @@
+{
+  "name": "codex-beacon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "desktop:dev": "pnpm --filter @codex-beacon/desktop tauri:dev",
+    "desktop:build": "pnpm --filter @codex-beacon/desktop tauri:build",
+    "build": "pnpm --filter @codex-beacon/desktop build",
+    "typecheck": "pnpm --filter @codex-beacon/desktop typecheck"
+  },
+  "packageManager": "pnpm@10.17.1"
+}

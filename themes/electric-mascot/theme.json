@@ -1,0 +1,12 @@
+{
+  "id": "electric-mascot",
+  "name": "Electric Mascot",
+  "description": "Original electric mascot reminder personality for strong waiting alerts.",
+  "version": "0.1.0",
+  "entry": "theme.css",
+  "capabilities": {
+    "mascot": true,
+    "audio": false,
+    "strongAlertAnimation": true
+  }
+}

@@ -1,0 +1,332 @@
+:root {
+  color: #f4f7fb;
+  background: transparent;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  line-height: 1.4;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+button,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+.beacon-shell {
+  width: 100vw;
+  height: 100vh;
+  padding: 10px;
+  background: transparent;
+}
+
+.hud-surface {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(20, 29, 38, 0.88), rgba(7, 11, 16, 0.7)),
+    rgba(9, 12, 18, 0.62);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.beacon-shell[data-alert="soft"] .hud-surface {
+  box-shadow:
+    0 0 22px rgba(33, 209, 168, 0.26),
+    0 12px 34px rgba(0, 0, 0, 0.34);
+}
+
+.beacon-shell[data-alert="normal"] .hud-surface {
+  box-shadow:
+    0 0 34px rgba(62, 158, 255, 0.36),
+    0 12px 34px rgba(0, 0, 0, 0.34);
+}
+
+.beacon-shell[data-alert="strong"] .hud-surface {
+  animation: electric-pulse 1.4s ease-in-out infinite;
+  box-shadow:
+    0 0 18px rgba(255, 232, 77, 0.72),
+    0 0 42px rgba(56, 211, 255, 0.46),
+    0 12px 34px rgba(0, 0, 0, 0.34);
+}
+
+.hud-header {
+  display: grid;
+  grid-template-columns: 28px 14px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 10px 4px;
+  -webkit-app-region: drag;
+}
+
+.icon-button,
+.capsule-body button,
+.control-row button,
+.control-row select {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-app-region: no-drag;
+}
+
+.icon-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.status-orb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #24d7a5;
+  box-shadow: 0 0 14px currentColor;
+}
+
+.beacon-shell[data-alert="normal"] .status-orb {
+  background: #5aa7ff;
+}
+
+.beacon-shell[data-alert="strong"] .status-orb {
+  background: #ffe64d;
+}
+
+.beacon-shell[data-alert="silent"] .status-orb {
+  background: #78828f;
+  box-shadow: none;
+}
+
+.title-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.app-name {
+  overflow: hidden;
+  color: rgba(246, 249, 255, 0.68);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-line {
+  overflow: hidden;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time-chip {
+  min-width: 48px;
+  border-radius: 7px;
+  color: rgba(246, 249, 255, 0.72);
+  font-size: 11px;
+  text-align: right;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px;
+  gap: 10px;
+  padding: 4px 10px 8px;
+}
+
+.summary-copy,
+.task-copy,
+.error-line {
+  margin: 0;
+}
+
+.summary-copy {
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 14px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-copy {
+  overflow: hidden;
+  margin-top: 2px;
+  color: rgba(231, 238, 248, 0.68);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.counter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  height: 44px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10px;
+  text-align: center;
+}
+
+.counter-grid span:nth-child(odd) {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.counter-grid span:nth-child(even) {
+  color: rgba(231, 238, 248, 0.62);
+}
+
+.task-list {
+  display: grid;
+  gap: 5px;
+  min-height: 50px;
+  padding: 0 10px;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  height: 22px;
+  gap: 8px;
+}
+
+.task-status {
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(246, 249, 255, 0.72);
+  font-size: 11px;
+  text-align: center;
+}
+
+.task-title {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-row {
+  display: flex;
+  gap: 5px;
+  min-height: 30px;
+  overflow: hidden;
+  padding: 8px 10px 10px;
+}
+
+.control-row button,
+.control-row select {
+  height: 24px;
+  min-width: 30px;
+  padding: 0 6px;
+  color: rgba(246, 249, 255, 0.82);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.control-row select {
+  width: 104px;
+}
+
+.control-row button:not(:first-of-type) {
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+}
+
+.capsule .beacon-shell,
+.capsule .hud-surface {
+  min-height: auto;
+}
+
+.capsule .hud-surface {
+  border-radius: 999px;
+}
+
+.capsule .hud-header {
+  grid-template-columns: 28px 12px minmax(0, 1fr) 42px;
+  min-height: 38px;
+  padding: 5px 8px;
+}
+
+.capsule .app-name {
+  display: none;
+}
+
+.capsule .status-line {
+  font-size: 15px;
+}
+
+.capsule-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 6px;
+  padding: 0 10px 8px 96px;
+}
+
+.capsule-body span {
+  overflow: hidden;
+  color: rgba(246, 249, 255, 0.74);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capsule-body button {
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.error-line {
+  padding: 0 10px 8px;
+  color: #ffb1b1;
+  font-size: 11px;
+}
+
+@keyframes electric-pulse {
+  0%,
+  100% {
+    filter: saturate(120%);
+  }
+  50% {
+    filter: saturate(180%) brightness(1.08);
+  }
+}

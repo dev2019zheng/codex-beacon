@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "Verify cross-layer boundaries and reusable contracts."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check Rust-to-IPC-to-UI status flow consistency."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Verify core status model quality and tests."}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Verify shell/theme UI quality and type safety."}
+{"file": "docs/architecture-tauri-rust-core.md", "reason": "Check implementation against the architectural decisions."}
