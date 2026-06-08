@@ -6,11 +6,14 @@ import {
   BeaconViewMode,
   CodexTaskSnapshot,
   CodexTaskStatus,
+  AlertLevel,
   getBeaconSnapshot,
   startBeaconWindowDrag,
   setBeaconWindowMode,
 } from "./beaconApi";
 import "./App.css";
+
+const ELECTRIC_MASCOT_THEME_ID = "electric-mascot";
 
 const statusTaskLabels: Record<CodexTaskStatus, string> = {
   running: "进行中",
@@ -198,6 +201,7 @@ function BeaconHUD({
         ) : (
           <BeaconCapsule
             snapshot={snapshot}
+            selectedTheme={selectedTheme}
             isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             onToggleViewMode={onToggleViewMode}
@@ -229,6 +233,7 @@ function BeaconCard({
   onStartDrag: () => void;
 }) {
   const visibleTasks = useMemo(() => visibleTaskRows(snapshot), [snapshot]);
+  const useMascot = isElectricMascotTheme(selectedTheme);
 
   return (
     <article
@@ -271,7 +276,15 @@ function BeaconCard({
 
       <section className="beacon-card-body">
         <div className="beacon-radar" aria-hidden="true">
-          <StatusOrb status={snapshot.overallStatus} size="large" />
+          {useMascot ? (
+            <ElectricMascot
+              alertLevel={snapshot.alertLevel}
+              mode="card"
+              status={snapshot.overallStatus}
+            />
+          ) : (
+            <StatusOrb status={snapshot.overallStatus} size="large" />
+          )}
         </div>
         <div className="beacon-status-copy">
           <h1>{statusHeadline(snapshot)}</h1>
@@ -296,17 +309,21 @@ function BeaconCard({
 
 function BeaconCapsule({
   snapshot,
+  selectedTheme,
   isRefreshing,
   onRefresh,
   onToggleViewMode,
   onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
+  selectedTheme: string;
   isRefreshing: boolean;
   onRefresh: () => void;
   onToggleViewMode: () => void;
   onStartDrag: () => void;
 }) {
+  const useMascot = isElectricMascotTheme(selectedTheme);
+
   return (
     <article
       className="beacon-capsule"
@@ -321,7 +338,15 @@ function BeaconCapsule({
         aria-label="展开为卡片"
         onClick={onToggleViewMode}
       >
-        <StatusOrb status={snapshot.overallStatus} size="capsule" />
+        {useMascot ? (
+          <ElectricMascot
+            alertLevel={snapshot.alertLevel}
+            mode="capsule"
+            status={snapshot.overallStatus}
+          />
+        ) : (
+          <StatusOrb status={snapshot.overallStatus} size="capsule" />
+        )}
       </button>
       <strong className="beacon-capsule-status">{statusCompactLabels[snapshot.overallStatus]}</strong>
       <span className="beacon-capsule-divider" aria-hidden="true" />
@@ -369,6 +394,53 @@ function StatusOrb({ status, size = "default" }: { status: CodexTaskStatus; size
           <span className="beacon-orb-particle particle-c" />
         </>
       ) : null}
+    </span>
+  );
+}
+
+function ElectricMascot({
+  status,
+  alertLevel,
+  mode,
+}: {
+  status: CodexTaskStatus;
+  alertLevel: AlertLevel;
+  mode: "card" | "capsule";
+}) {
+  return (
+    <span
+      className={`beacon-mascot beacon-mascot-${mode}`}
+      data-mascot-alert={alertLevel}
+      data-mascot-status={status}
+      aria-label={`Electric Mascot ${statusTaskLabels[status]}`}
+      role="img"
+    >
+      <span className="beacon-mascot-stage" aria-hidden="true">
+        <span className="beacon-mascot-shadow" />
+        <span className="beacon-mascot-aura" />
+        <span className="beacon-mascot-tail" />
+        <span className="beacon-mascot-ear mascot-ear-left" />
+        <span className="beacon-mascot-ear mascot-ear-right" />
+        <span className="beacon-mascot-body">
+          <span className="beacon-mascot-face">
+            <span className="beacon-mascot-eye mascot-eye-left" />
+            <span className="beacon-mascot-eye mascot-eye-right" />
+            <span className="beacon-mascot-mouth" />
+          </span>
+          <span className="beacon-mascot-core" />
+        </span>
+        <span className="beacon-mascot-foot mascot-foot-left" />
+        <span className="beacon-mascot-foot mascot-foot-right" />
+        <span className="beacon-mascot-discharge discharge-a" />
+        <span className="beacon-mascot-discharge discharge-b" />
+        <span className="beacon-mascot-discharge discharge-c" />
+        <span className="beacon-mascot-spark spark-a" />
+        <span className="beacon-mascot-spark spark-b" />
+        <span className="beacon-mascot-spark spark-c" />
+        <span className="beacon-mascot-smoke smoke-a" />
+        <span className="beacon-mascot-smoke smoke-b" />
+        <span className="beacon-mascot-scan" />
+      </span>
     </span>
   );
 }
@@ -521,6 +593,10 @@ function capsuleSummary(snapshot: BeaconSnapshot) {
 
 function countTasks(tasks: CodexTaskSnapshot[], status: CodexTaskStatus) {
   return tasks.filter((task) => task.status === status).length;
+}
+
+function isElectricMascotTheme(themeId: string) {
+  return themeId === ELECTRIC_MASCOT_THEME_ID;
 }
 
 function formatRelativeTime(value?: string) {

@@ -116,7 +116,8 @@ pub fn builtin_themes() -> Vec<ThemeDescriptor> {
         ThemeDescriptor {
             id: "electric-mascot".to_string(),
             name: "Electric Mascot".to_string(),
-            description: "Original electric mascot reminder personality.".to_string(),
+            description: "Original animated electric mascot with status-specific poses."
+                .to_string(),
             supports_mascot: true,
         },
     ]

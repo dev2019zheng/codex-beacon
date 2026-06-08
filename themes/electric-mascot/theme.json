@@ -1,12 +1,13 @@
 {
   "id": "electric-mascot",
   "name": "Electric Mascot",
-  "description": "Original electric mascot reminder personality for strong waiting alerts.",
-  "version": "0.1.0",
+  "description": "Original animated electric mascot with state-specific work, approval, input, completion, failure, idle, and unknown poses.",
+  "version": "0.2.0",
   "entry": "theme.css",
   "capabilities": {
     "mascot": true,
     "audio": false,
-    "strongAlertAnimation": true
+    "strongAlertAnimation": true,
+    "stateSpecificPoses": true
   }
 }

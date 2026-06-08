@@ -122,7 +122,7 @@ function browserSnapshot(status: CodexTaskStatus, source: BeaconSnapshotSource):
       {
         id: "electric-mascot",
         name: "Electric Mascot",
-        description: "Original electric mascot reminder personality.",
+        description: "Original animated electric mascot with status-specific poses.",
         supportsMascot: true,
       },
     ],

@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "HUD shell contract, visual validation, theme boundary, and required frontend checks."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "BeaconSnapshot and theme descriptor type boundary rules."}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Theme manifest and desktop frontend organization."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Search and reuse existing shell/theme patterns before adding components."}
+{"file": "docs/architecture-tauri-rust-core.md", "reason": "Electric Mascot theme contract and status animation expectations."}

@@ -797,6 +797,321 @@ button {
   opacity: 0.72;
 }
 
+.theme-electric-mascot .beacon-window {
+  background:
+    radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--state-color) 28%, transparent), transparent 32%),
+    radial-gradient(circle at 78% 86%, rgba(250, 204, 21, 0.11), transparent 30%),
+    linear-gradient(145deg, rgba(19, 28, 34, 0.72), rgba(7, 11, 16, 0.6)),
+    var(--beacon-shell-bg);
+}
+
+.theme-electric-mascot .beacon-radar {
+  overflow: visible;
+}
+
+.theme-electric-mascot .beacon-radar::before {
+  border-color: color-mix(in srgb, var(--state-color) 28%, rgba(250, 204, 21, 0.24));
+  background:
+    linear-gradient(color-mix(in srgb, var(--state-color) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(250, 204, 21, 0.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.beacon-mascot {
+  --mascot-scale: 1;
+  --mascot-body: #182a2f;
+  --mascot-body-deep: #0d171d;
+  --mascot-face: #f8fbff;
+  --mascot-electric: #facc15;
+  --mascot-electric-hot: #fff59d;
+  --mascot-plasma: #22d3a7;
+  --mascot-violet: #a78bfa;
+  --mascot-error: #f87171;
+
+  position: relative;
+  display: inline-block;
+  width: 96px;
+  height: 94px;
+  color: var(--state-color);
+  filter: drop-shadow(0 0 16px var(--state-glow-soft));
+}
+
+.beacon-mascot-capsule {
+  --mascot-scale: 0.34;
+
+  width: 30px;
+  height: 30px;
+}
+
+.beacon-mascot[data-mascot-alert="strong"] .beacon-mascot-aura {
+  opacity: 0.95;
+  filter: blur(10px);
+}
+
+.beacon-mascot-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 96px;
+  height: 94px;
+  transform: translate(-50%, -50%) scale(var(--mascot-scale));
+  transform-origin: center;
+}
+
+.beacon-mascot-stage span {
+  position: absolute;
+  pointer-events: none;
+}
+
+.beacon-mascot-shadow {
+  right: 18px;
+  bottom: 4px;
+  left: 18px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  filter: blur(3px);
+  transform: scaleX(0.92);
+}
+
+.beacon-mascot-aura {
+  inset: 6px 8px 2px;
+  border-radius: 48% 52% 50% 50%;
+  background:
+    radial-gradient(circle at 52% 45%, color-mix(in srgb, var(--state-color) 24%, transparent), transparent 42%),
+    radial-gradient(circle at 42% 28%, rgba(250, 204, 21, 0.2), transparent 36%);
+  opacity: 0.62;
+  filter: blur(8px);
+}
+
+.beacon-mascot-tail {
+  top: 34px;
+  right: 7px;
+  width: 34px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--mascot-electric-hot), var(--mascot-electric) 52%, #d97706);
+  clip-path: polygon(0 34%, 42% 34%, 30% 0, 100% 50%, 56% 50%, 70% 100%);
+  filter: drop-shadow(0 0 9px rgba(250, 204, 21, 0.62));
+  transform: rotate(8deg);
+  transform-origin: 8px 22px;
+}
+
+.beacon-mascot-ear {
+  top: 12px;
+  width: 24px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(160deg, var(--mascot-electric-hot), var(--mascot-electric) 48%, var(--mascot-body) 52%),
+    var(--mascot-electric);
+  clip-path: polygon(50% 0, 100% 78%, 54% 100%, 0 78%);
+  filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.42));
+}
+
+.mascot-ear-left {
+  left: 24px;
+  transform: rotate(-24deg);
+  transform-origin: 62% 92%;
+}
+
+.mascot-ear-right {
+  right: 24px;
+  transform: rotate(24deg);
+  transform-origin: 38% 92%;
+}
+
+.beacon-mascot-body {
+  top: 28px;
+  left: 21px;
+  width: 54px;
+  height: 56px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 46% 46% 43% 43%;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.24), transparent 16%),
+    linear-gradient(145deg, #244148, var(--mascot-body) 48%, var(--mascot-body-deep));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.18),
+    0 0 18px color-mix(in srgb, var(--state-color) 18%, transparent);
+}
+
+.beacon-mascot-body::before,
+.beacon-mascot-body::after {
+  position: absolute;
+  top: 25px;
+  width: 11px;
+  height: 16px;
+  border-radius: 55% 45% 65% 35%;
+  content: "";
+  background: linear-gradient(160deg, var(--mascot-electric-hot), var(--mascot-electric));
+  opacity: 0.9;
+}
+
+.beacon-mascot-body::before {
+  left: -7px;
+  transform: rotate(18deg);
+}
+
+.beacon-mascot-body::after {
+  right: -7px;
+  transform: rotate(-18deg);
+}
+
+.beacon-mascot-face {
+  top: 15px;
+  left: 10px;
+  width: 34px;
+  height: 22px;
+}
+
+.beacon-mascot-eye {
+  top: 3px;
+  width: 6px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mascot-face);
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--state-color) 52%, transparent),
+    inset 0 -2px 0 rgba(34, 211, 167, 0.38);
+}
+
+.mascot-eye-left {
+  left: 4px;
+}
+
+.mascot-eye-right {
+  right: 4px;
+}
+
+.beacon-mascot-mouth {
+  top: 15px;
+  left: 13px;
+  width: 8px;
+  height: 4px;
+  border-bottom: 2px solid rgba(248, 251, 255, 0.82);
+  border-radius: 0 0 12px 12px;
+}
+
+.beacon-mascot-core {
+  right: 19px;
+  bottom: 9px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--state-color) 70%, white);
+  border-radius: var(--beacon-radius-pill);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.82), transparent 19%),
+    var(--state-color);
+  box-shadow:
+    0 0 8px var(--state-glow-strong),
+    0 0 18px var(--state-glow-soft);
+}
+
+.beacon-mascot-foot {
+  bottom: 8px;
+  width: 19px;
+  height: 10px;
+  border-radius: 999px 999px 8px 8px;
+  background: linear-gradient(180deg, var(--mascot-electric), #b45309);
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.24);
+}
+
+.mascot-foot-left {
+  left: 25px;
+  transform: rotate(8deg);
+}
+
+.mascot-foot-right {
+  right: 25px;
+  transform: rotate(-8deg);
+}
+
+.beacon-mascot-discharge {
+  width: 38px;
+  height: 18px;
+  background: linear-gradient(90deg, var(--mascot-electric-hot), var(--state-color), transparent);
+  clip-path: polygon(0 45%, 26% 45%, 17% 0, 58% 54%, 37% 54%, 60% 100%, 100% 28%, 68% 36%);
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 6px var(--state-glow-strong))
+    drop-shadow(0 0 14px rgba(250, 204, 21, 0.42));
+}
+
+.discharge-a {
+  top: 20px;
+  right: -6px;
+  transform: rotate(-11deg);
+}
+
+.discharge-b {
+  top: 43px;
+  right: -14px;
+  transform: rotate(14deg) scaleX(0.82);
+}
+
+.discharge-c {
+  top: 8px;
+  left: -2px;
+  transform: rotate(202deg) scaleX(0.74);
+}
+
+.beacon-mascot-spark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--state-color) 74%, white);
+  box-shadow:
+    0 0 8px var(--state-glow-strong),
+    0 0 16px rgba(250, 204, 21, 0.32);
+  opacity: 0;
+}
+
+.spark-a {
+  top: 20px;
+  left: 14px;
+}
+
+.spark-b {
+  top: 12px;
+  right: 17px;
+}
+
+.spark-c {
+  right: 11px;
+  bottom: 24px;
+  width: 4px;
+  height: 4px;
+}
+
+.beacon-mascot-smoke {
+  right: 17px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(229, 231, 235, 0.34);
+  filter: blur(2px);
+  opacity: 0;
+}
+
+.smoke-a {
+  top: 19px;
+}
+
+.smoke-b {
+  top: 28px;
+  right: 9px;
+}
+
+.beacon-mascot-scan {
+  inset: 12px 10px 8px;
+  border-radius: 50%;
+  background: linear-gradient(105deg, transparent 0 44%, rgba(255, 255, 255, 0.5) 49%, transparent 54% 100%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  transform: translateX(-18px);
+}
+
 .beacon-edge-energy,
 .beacon-alert-halo,
 .beacon-completion-ring {
@@ -962,6 +1277,172 @@ button {
   }
 }
 
+@keyframes beacon-mascot-standby {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(var(--mascot-scale));
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 2px)) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-work {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(-1deg) scale(var(--mascot-scale));
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 5px)) rotate(1.6deg) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-tail-charge {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 7px rgba(250, 204, 21, 0.42));
+    transform: rotate(6deg) scale(0.96);
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 10px rgba(250, 204, 21, 0.78))
+      drop-shadow(0 0 18px var(--state-glow-soft));
+    transform: rotate(13deg) scale(1.08);
+  }
+}
+
+@keyframes beacon-mascot-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes beacon-mascot-spark-float {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.65);
+  }
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.18);
+  }
+}
+
+@keyframes beacon-mascot-alert {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(-3deg) scale(var(--mascot-scale));
+  }
+  25% {
+    transform: translate(calc(-50% - 2px), calc(-50% - 2px)) rotate(4deg) scale(var(--mascot-scale));
+  }
+  50% {
+    transform: translate(calc(-50% + 3px), calc(-50% + 1px)) rotate(-5deg) scale(var(--mascot-scale));
+  }
+  75% {
+    transform: translate(calc(-50% - 1px), calc(-50% - 3px)) rotate(3deg) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-request {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(var(--mascot-scale));
+  }
+  35% {
+    transform: translate(-50%, calc(-50% - 4px)) rotate(-7deg) scale(var(--mascot-scale));
+  }
+  65% {
+    transform: translate(-50%, calc(-50% - 4px)) rotate(7deg) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-zap {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: rotate(var(--zap-rotation, 0deg)) scaleX(0.72);
+  }
+  18%,
+  42%,
+  68% {
+    opacity: 1;
+    transform: rotate(var(--zap-rotation, 0deg)) scaleX(1.18);
+  }
+  30%,
+  54% {
+    opacity: 0.34;
+    transform: rotate(var(--zap-rotation, 0deg)) scaleX(0.9);
+  }
+}
+
+@keyframes beacon-mascot-success {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(var(--mascot-scale));
+  }
+  18% {
+    transform: translate(-50%, calc(-50% - 14px)) scale(var(--mascot-scale));
+  }
+  34% {
+    transform: translate(-50%, calc(-50% - 4px)) scale(var(--mascot-scale));
+  }
+  48% {
+    transform: translate(-50%, calc(-50% - 8px)) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-short {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(var(--mascot-scale));
+  }
+  12% {
+    transform: translate(calc(-50% - 3px), -50%) rotate(-5deg) scale(var(--mascot-scale));
+  }
+  24% {
+    transform: translate(calc(-50% + 3px), calc(-50% + 1px)) rotate(4deg) scale(var(--mascot-scale));
+  }
+  36% {
+    transform: translate(calc(-50% - 2px), calc(-50% + 2px)) rotate(-3deg) scale(var(--mascot-scale));
+  }
+}
+
+@keyframes beacon-mascot-smoke-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.72);
+  }
+  26% {
+    opacity: 0.64;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(1.4);
+  }
+}
+
+@keyframes beacon-mascot-scan {
+  0% {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  22% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(26px);
+  }
+}
+
 .beacon-orb {
   animation: beacon-orb-breathe 4s var(--beacon-ease-standard) infinite;
 }
@@ -1011,6 +1492,170 @@ button {
 .beacon-window[data-status="idle"] .beacon-orb,
 .beacon-window[data-status="unknown"] .beacon-orb {
   animation: beacon-idle-dim 6s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-mascot-stage {
+  animation: beacon-mascot-standby 4.8s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .beacon-mascot-stage {
+  animation: beacon-mascot-work 1.7s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .beacon-mascot-tail,
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .beacon-mascot-tail,
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .beacon-mascot-tail {
+  animation: beacon-mascot-tail-charge 820ms ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .beacon-mascot-core,
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .beacon-mascot-core,
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .beacon-mascot-core {
+  animation: beacon-mascot-core-pulse 1.15s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .beacon-mascot-spark,
+.theme-electric-mascot .beacon-window[data-status="completed"] .beacon-mascot-spark {
+  animation: beacon-mascot-spark-float 1.8s ease-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .spark-b,
+.theme-electric-mascot .beacon-window[data-status="completed"] .spark-b {
+  animation-delay: 320ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="running"] .spark-c,
+.theme-electric-mascot .beacon-window[data-status="completed"] .spark-c {
+  animation-delay: 680ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="completed"] .beacon-mascot-stage {
+  animation: beacon-mascot-success 2.25s var(--beacon-ease-emphasized) infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="completed"] .beacon-mascot-aura {
+  opacity: 0.95;
+  filter: blur(10px);
+}
+
+.theme-electric-mascot .beacon-window[data-status="completed"] .beacon-mascot-mouth {
+  top: 13px;
+  left: 12px;
+  width: 10px;
+  height: 7px;
+  border-right: 2px solid rgba(248, 251, 255, 0.88);
+  border-bottom: 2px solid rgba(248, 251, 255, 0.88);
+  border-left: 2px solid rgba(248, 251, 255, 0.88);
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .beacon-mascot-stage {
+  animation: beacon-mascot-alert 620ms steps(2, end) infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .beacon-mascot-discharge {
+  opacity: 1;
+  animation: beacon-mascot-zap 720ms steps(3, end) infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .discharge-a {
+  --zap-rotation: -11deg;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .discharge-b {
+  --zap-rotation: 14deg;
+  animation-delay: 120ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_approval"] .discharge-c {
+  --zap-rotation: 202deg;
+  animation-delay: 240ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .beacon-mascot-stage {
+  animation: beacon-mascot-request 1.35s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .beacon-mascot-discharge {
+  opacity: 0.78;
+  animation: beacon-mascot-zap 1.45s steps(4, end) infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .discharge-a {
+  --zap-rotation: -26deg;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .discharge-b {
+  --zap-rotation: 6deg;
+  animation-delay: 260ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .discharge-c {
+  --zap-rotation: 196deg;
+  opacity: 0.32;
+}
+
+.theme-electric-mascot .beacon-window[data-status="waiting_input"] .beacon-mascot-eye {
+  height: 10px;
+  background: var(--mascot-violet);
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-stage {
+  animation: beacon-mascot-short 980ms steps(2, end) infinite;
+  filter: saturate(0.62);
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-tail,
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-core {
+  background: var(--mascot-error);
+  filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.58));
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-eye {
+  top: 7px;
+  height: 3px;
+  background: var(--mascot-error);
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.48);
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-mouth {
+  top: 14px;
+  width: 9px;
+  height: 5px;
+  border-top: 2px solid rgba(248, 251, 255, 0.78);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .beacon-mascot-smoke {
+  animation: beacon-mascot-smoke-rise 1.6s ease-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="failed"] .smoke-b {
+  animation-delay: 420ms;
+}
+
+.theme-electric-mascot .beacon-window[data-status="idle"] .beacon-mascot-eye {
+  top: 8px;
+  height: 3px;
+  opacity: 0.78;
+}
+
+.theme-electric-mascot .beacon-window[data-status="idle"] .beacon-mascot-core {
+  transform: scale(0.82);
+  opacity: 0.66;
+}
+
+.theme-electric-mascot .beacon-window[data-status="unknown"] .beacon-mascot-stage {
+  animation: beacon-mascot-standby 2.8s ease-in-out infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="unknown"] .beacon-mascot-scan {
+  animation: beacon-mascot-scan 1.55s linear infinite;
+}
+
+.theme-electric-mascot .beacon-window[data-status="unknown"] .beacon-mascot-eye,
+.theme-electric-mascot .beacon-window[data-status="unknown"] .beacon-mascot-core {
+  opacity: 0.72;
 }
 
 @media (max-width: 344px) {

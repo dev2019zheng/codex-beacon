@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Required validation commands and card/capsule visual inspection criteria."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Ensure mascot work stays within typed Beacon payloads."}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Confirm theme implementation respects project layout."}
+{"file": "docs/architecture-tauri-rust-core.md", "reason": "Verify the implemented mascot matches documented status behaviors and read-only boundary."}
