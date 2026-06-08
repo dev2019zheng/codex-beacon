@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -34,6 +34,14 @@ pub enum AlertLevel {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BeaconSnapshotSource {
+    Hooks,
+    Manual,
+    Simulation,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexTaskSnapshot {
     pub id: String,
@@ -55,6 +63,7 @@ pub struct ThemeDescriptor {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BeaconSnapshot {
+    pub source: BeaconSnapshotSource,
     pub overall_status: CodexTaskStatus,
     pub alert_level: AlertLevel,
     pub active_count: usize,
@@ -62,6 +71,23 @@ pub struct BeaconSnapshot {
     pub tasks: Vec<CodexTaskSnapshot>,
     pub themes: Vec<ThemeDescriptor>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexHookEvent {
+    #[serde(default)]
+    pub schema_version: Option<u16>,
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub cwd: Option<String>,
+    #[serde(default)]
+    pub tool_name: Option<String>,
 }
 
 pub fn builtin_themes() -> Vec<ThemeDescriptor> {
@@ -97,10 +123,18 @@ pub fn simulated_snapshot(tick: u64) -> BeaconSnapshot {
         _ => CodexTaskStatus::Idle,
     };
 
-    snapshot_for_status(status, now)
+    snapshot_for_status_with_source(status, now, BeaconSnapshotSource::Simulation)
 }
 
 pub fn snapshot_for_status(status: CodexTaskStatus, now: DateTime<Utc>) -> BeaconSnapshot {
+    snapshot_for_status_with_source(status, now, BeaconSnapshotSource::Simulation)
+}
+
+pub fn snapshot_for_status_with_source(
+    status: CodexTaskStatus,
+    now: DateTime<Utc>,
+    source: BeaconSnapshotSource,
+) -> BeaconSnapshot {
     let tasks = match status {
         CodexTaskStatus::Idle => Vec::new(),
         CodexTaskStatus::Running => vec![
@@ -165,11 +199,63 @@ pub fn snapshot_for_status(status: CodexTaskStatus, now: DateTime<Utc>) -> Beaco
         )],
     };
 
+    snapshot_from_tasks(status, tasks, now, source)
+}
+
+pub fn parse_hook_events_jsonl(input: &str) -> Vec<CodexHookEvent> {
+    input
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+            serde_json::from_str::<CodexHookEvent>(trimmed).ok()
+        })
+        .collect()
+}
+
+pub fn snapshot_from_hook_events(events: &[CodexHookEvent], now: DateTime<Utc>) -> BeaconSnapshot {
+    let Some(latest) = events.iter().max_by_key(|event| event.timestamp) else {
+        return snapshot_from_tasks(
+            CodexTaskStatus::Idle,
+            Vec::new(),
+            now,
+            BeaconSnapshotSource::Hooks,
+        );
+    };
+
+    let status = status_for_hook_event(latest, now);
+    if status == CodexTaskStatus::Idle {
+        return snapshot_from_tasks(status, Vec::new(), now, BeaconSnapshotSource::Hooks);
+    }
+
+    let detail = latest
+        .summary
+        .clone()
+        .unwrap_or_else(|| latest.event.clone());
+    let task = CodexTaskSnapshot {
+        id: hook_task_id(latest),
+        title: hook_task_title(latest),
+        status: status.clone(),
+        detail,
+        updated_at: latest.timestamp,
+    };
+
+    snapshot_from_tasks(status, vec![task], now, BeaconSnapshotSource::Hooks)
+}
+
+fn snapshot_from_tasks(
+    fallback_status: CodexTaskStatus,
+    tasks: Vec<CodexTaskSnapshot>,
+    now: DateTime<Utc>,
+    source: BeaconSnapshotSource,
+) -> BeaconSnapshot {
     let overall_status = tasks
         .iter()
         .map(|task| task.status.clone())
         .max_by_key(status_priority)
-        .unwrap_or(status);
+        .unwrap_or(fallback_status);
     let alert_level = overall_status.alert_level();
     let active_count = tasks
         .iter()
@@ -186,6 +272,7 @@ pub fn snapshot_for_status(status: CodexTaskStatus, now: DateTime<Utc>) -> Beaco
         .count();
 
     BeaconSnapshot {
+        source,
         overall_status,
         alert_level,
         active_count,
@@ -194,6 +281,54 @@ pub fn snapshot_for_status(status: CodexTaskStatus, now: DateTime<Utc>) -> Beaco
         themes: builtin_themes(),
         updated_at: now,
     }
+}
+
+fn status_for_hook_event(event: &CodexHookEvent, now: DateTime<Utc>) -> CodexTaskStatus {
+    if now.signed_duration_since(event.timestamp) > Duration::minutes(10) {
+        return CodexTaskStatus::Idle;
+    }
+
+    let normalized = event.event.replace(['_', '-'], "").to_lowercase();
+
+    if normalized.contains("approval") || normalized.contains("permission") {
+        return CodexTaskStatus::WaitingApproval;
+    }
+    if normalized.contains("input") || normalized.contains("question") {
+        return CodexTaskStatus::WaitingInput;
+    }
+    if normalized.contains("stop") || normalized.contains("complete") {
+        return CodexTaskStatus::Completed;
+    }
+    if normalized.contains("userpromptsubmit")
+        || normalized.contains("pretooluse")
+        || normalized.contains("posttooluse")
+        || normalized.contains("sessionstart")
+    {
+        return CodexTaskStatus::Running;
+    }
+
+    CodexTaskStatus::Unknown
+}
+
+fn hook_task_id(event: &CodexHookEvent) -> String {
+    event
+        .session_id
+        .as_ref()
+        .map(|session_id| format!("hook-{session_id}"))
+        .unwrap_or_else(|| "hook-latest".to_string())
+}
+
+fn hook_task_title(event: &CodexHookEvent) -> String {
+    if let Some(tool_name) = &event.tool_name {
+        return format!("Codex {tool_name}");
+    }
+
+    if let Some(session_id) = &event.session_id {
+        let short_id: String = session_id.chars().take(8).collect();
+        return format!("Codex session {short_id}");
+    }
+
+    "Codex activity".to_string()
 }
 
 fn task(
@@ -243,6 +378,7 @@ mod tests {
     fn idle_snapshot_has_no_tasks() {
         let snapshot = snapshot_for_status(CodexTaskStatus::Idle, Utc::now());
 
+        assert_eq!(snapshot.source, BeaconSnapshotSource::Simulation);
         assert_eq!(snapshot.overall_status, CodexTaskStatus::Idle);
         assert_eq!(snapshot.alert_level, AlertLevel::Silent);
         assert!(snapshot.tasks.is_empty());
@@ -255,5 +391,48 @@ mod tests {
 
         assert_eq!(first.overall_status, CodexTaskStatus::Running);
         assert_eq!(second.overall_status, CodexTaskStatus::WaitingApproval);
+    }
+
+    #[test]
+    fn parses_hook_events_from_jsonl() {
+        let jsonl = r#"{"schemaVersion":1,"timestamp":"2026-06-08T08:00:00Z","event":"PreToolUse","summary":"Starting tool: Bash","sessionId":"abc","toolName":"Bash"}"#;
+        let events = parse_hook_events_jsonl(jsonl);
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event, "PreToolUse");
+        assert_eq!(events[0].tool_name.as_deref(), Some("Bash"));
+    }
+
+    #[test]
+    fn hook_snapshot_maps_waiting_events_to_strong_alerts() {
+        let now = DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let events = parse_hook_events_jsonl(
+            r#"{"schemaVersion":1,"timestamp":"2026-06-08T08:00:30Z","event":"PermissionRequest","summary":"Waiting for approval","sessionId":"abc"}"#,
+        );
+
+        let snapshot = snapshot_from_hook_events(&events, now);
+
+        assert_eq!(snapshot.source, BeaconSnapshotSource::Hooks);
+        assert_eq!(snapshot.overall_status, CodexTaskStatus::WaitingApproval);
+        assert_eq!(snapshot.alert_level, AlertLevel::Strong);
+        assert_eq!(snapshot.waiting_count, 1);
+    }
+
+    #[test]
+    fn stale_hook_events_return_idle_snapshot() {
+        let now = DateTime::parse_from_rfc3339("2026-06-08T08:20:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let events = parse_hook_events_jsonl(
+            r#"{"schemaVersion":1,"timestamp":"2026-06-08T08:00:00Z","event":"PreToolUse","summary":"Starting tool"}"#,
+        );
+
+        let snapshot = snapshot_from_hook_events(&events, now);
+
+        assert_eq!(snapshot.source, BeaconSnapshotSource::Hooks);
+        assert_eq!(snapshot.overall_status, CodexTaskStatus::Idle);
+        assert!(snapshot.tasks.is_empty());
     }
 }

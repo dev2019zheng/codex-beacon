@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BeaconSnapshot,
+  BeaconSnapshotSource,
   CodexTaskStatus,
   clearBeaconManualStatus,
   getBeaconSnapshot,
@@ -39,7 +40,14 @@ const statusShortLabels: Record<CodexTaskStatus, string> = {
   unknown: "…",
 };
 
+const sourceLabels: Record<BeaconSnapshotSource, string> = {
+  hooks: "Hooks",
+  manual: "Manual",
+  simulation: "Demo",
+};
+
 const initialSnapshot: BeaconSnapshot = {
+  source: "simulation",
   overallStatus: "unknown",
   alertLevel: "silent",
   activeCount: 0,
@@ -112,7 +120,7 @@ function App() {
           </button>
           <div className="status-orb" aria-hidden="true" />
           <div className="title-stack">
-            <span className="app-name">Codex Beacon</span>
+            <span className="app-name">Codex Beacon / {sourceLabels[snapshot.source]}</span>
             <span className="status-line">{statusLabels[snapshot.overallStatus]}</span>
           </div>
           <span className="time-chip">{updatedTime}</span>

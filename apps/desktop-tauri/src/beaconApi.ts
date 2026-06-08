@@ -11,6 +11,8 @@ export type CodexTaskStatus =
 
 export type AlertLevel = "silent" | "soft" | "normal" | "strong";
 
+export type BeaconSnapshotSource = "hooks" | "manual" | "simulation";
+
 export type CodexTaskSnapshot = {
   id: string;
   title: string;
@@ -27,6 +29,7 @@ export type ThemeDescriptor = {
 };
 
 export type BeaconSnapshot = {
+  source: BeaconSnapshotSource;
   overallStatus: CodexTaskStatus;
   alertLevel: AlertLevel;
   activeCount: number;
@@ -56,9 +59,10 @@ export async function getBeaconSnapshot() {
   }
 
   const status = browserManualStatus ?? statusOptions[browserTick % 5];
+  const source = browserManualStatus ? "manual" : "simulation";
   browserTick += 1;
 
-  return browserSnapshot(status);
+  return browserSnapshot(status, source);
 }
 
 export async function setBeaconManualStatus(status: CodexTaskStatus) {
@@ -67,7 +71,7 @@ export async function setBeaconManualStatus(status: CodexTaskStatus) {
   }
 
   browserManualStatus = status;
-  return browserSnapshot(status);
+  return browserSnapshot(status, "manual");
 }
 
 export async function clearBeaconManualStatus() {
@@ -77,15 +81,16 @@ export async function clearBeaconManualStatus() {
 
   browserManualStatus = null;
   browserTick = 0;
-  return browserSnapshot("running");
+  return browserSnapshot("running", "simulation");
 }
 
-function browserSnapshot(status: CodexTaskStatus): BeaconSnapshot {
+function browserSnapshot(status: CodexTaskStatus, source: BeaconSnapshotSource): BeaconSnapshot {
   const now = new Date().toISOString();
   const tasks = tasksForStatus(status, now);
   const overallStatus = tasks[0]?.status ?? status;
 
   return {
+    source,
     overallStatus,
     alertLevel: alertLevelForStatus(overallStatus),
     activeCount: tasks.filter((task) => task.status === "running").length,

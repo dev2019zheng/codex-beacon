@@ -28,3 +28,61 @@ Rust backend/core changes must preserve the core-shell boundary and pass workspa
 - Does the payload still serialize to the frontend contract?
 - Is the core reusable by non-Tauri shells?
 - Are generated artifacts such as `target/`, `dist/`, and TypeScript build info ignored?
+
+## Scenario: Codex Hook Event Source
+
+### 1. Scope / Trigger
+
+- Trigger: any change to Codex hook recording, event-log storage, or hook-derived status mapping.
+- Scope: `.codex/hooks/*.py`, `.codex/hooks.json`, `core/beacon-core`, and Tauri source adapters.
+
+### 2. Signatures
+
+- Hook command: `python3 -X utf8 .codex/hooks/beacon-record-event.py --event <HookName>`.
+- Optional hook override: `--log-path <path>`.
+- Environment override: `CODEX_BEACON_EVENT_LOG=/path/to/events.jsonl`.
+- Core parser: `parse_hook_events_jsonl(input: &str) -> Vec<CodexHookEvent>`.
+- Core mapper: `snapshot_from_hook_events(events: &[CodexHookEvent], now: DateTime<Utc>) -> BeaconSnapshot`.
+
+### 3. Contracts
+
+- Default event log path is `~/.codex-beacon/events.jsonl`.
+- Hook JSONL rows use camelCase fields: `schemaVersion`, `timestamp`, `event`, `summary`, optional `sessionId`, optional `cwd`, optional `toolName`.
+- Hook rows must never include prompt text, tool arguments, command output, or model responses.
+- `BeaconSnapshot.source` must be one of `hooks`, `manual`, or `simulation`.
+- Tauri desktop defaults to hook-derived snapshots; browser preview remains simulation-only unless manual demo controls are used.
+
+### 4. Validation & Error Matrix
+
+- Missing or unreadable hook log -> return a hooks/idle snapshot.
+- Empty hook log -> return a hooks/idle snapshot.
+- Malformed JSONL row -> skip that row and parse the rest.
+- Hook recorder write failure -> exit 0 after stderr note so Codex is not blocked.
+- Latest event older than ten minutes -> return hooks/idle.
+- Approval or permission event -> map to `waiting_approval` with strong alert.
+
+### 5. Good/Base/Bad Cases
+
+- Good: `PermissionRequest` within ten minutes maps to one waiting task and `AlertLevel::Strong`.
+- Base: no event log maps to an idle hook snapshot.
+- Bad: storing full user prompts or shell output in the event log.
+
+### 6. Tests Required
+
+- Hook recorder self-test asserts sanitized output and no prompt persistence.
+- Core unit tests assert JSONL parsing, waiting mapping, and stale-event idle fallback.
+- Tauri build is required when command behavior or IPC payload fields change.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+React component reads ~/.codex-beacon/events.jsonl directly and derives status.
+```
+
+#### Correct
+
+```text
+Hook recorder writes sanitized JSONL -> Rust core derives BeaconSnapshot -> Tauri command exposes the snapshot.
+```

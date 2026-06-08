@@ -1,28 +1,29 @@
-use std::sync::Mutex;
+use std::{env, fs, path::PathBuf, sync::Mutex};
 
-use beacon_core::{simulated_snapshot, snapshot_for_status, BeaconSnapshot, CodexTaskStatus};
+use beacon_core::{
+    parse_hook_events_jsonl, snapshot_for_status_with_source, snapshot_from_hook_events,
+    BeaconSnapshot, BeaconSnapshotSource, CodexTaskStatus,
+};
 
 #[derive(Default)]
 struct BeaconState {
-    tick: Mutex<u64>,
     manual_status: Mutex<Option<CodexTaskStatus>>,
 }
 
 #[tauri::command]
 fn get_beacon_snapshot(state: tauri::State<'_, BeaconState>) -> BeaconSnapshot {
+    let now = chrono::Utc::now();
+
     if let Some(status) = state
         .manual_status
         .lock()
         .expect("manual status lock poisoned")
         .clone()
     {
-        return snapshot_for_status(status, chrono::Utc::now());
+        return snapshot_for_status_with_source(status, now, BeaconSnapshotSource::Manual);
     }
 
-    let mut tick = state.tick.lock().expect("tick lock poisoned");
-    let snapshot = simulated_snapshot(*tick);
-    *tick = tick.saturating_add(1);
-    snapshot
+    snapshot_from_hook_log(now)
 }
 
 #[tauri::command]
@@ -35,7 +36,7 @@ fn set_manual_status(
         .lock()
         .expect("manual status lock poisoned") = Some(status.clone());
 
-    snapshot_for_status(status, chrono::Utc::now())
+    snapshot_for_status_with_source(status, chrono::Utc::now(), BeaconSnapshotSource::Manual)
 }
 
 #[tauri::command]
@@ -45,9 +46,26 @@ fn clear_manual_status(state: tauri::State<'_, BeaconState>) -> BeaconSnapshot {
         .lock()
         .expect("manual status lock poisoned") = None;
 
-    let mut tick = state.tick.lock().expect("tick lock poisoned");
-    *tick = 0;
-    simulated_snapshot(0)
+    snapshot_from_hook_log(chrono::Utc::now())
+}
+
+fn snapshot_from_hook_log(now: chrono::DateTime<chrono::Utc>) -> BeaconSnapshot {
+    let events = fs::read_to_string(hook_event_log_path())
+        .map(|contents| parse_hook_events_jsonl(&contents))
+        .unwrap_or_default();
+
+    snapshot_from_hook_events(&events, now)
+}
+
+fn hook_event_log_path() -> PathBuf {
+    if let Ok(path) = env::var("CODEX_BEACON_EVENT_LOG") {
+        return PathBuf::from(path);
+    }
+
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home)
+        .join(".codex-beacon")
+        .join("events.jsonl")
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

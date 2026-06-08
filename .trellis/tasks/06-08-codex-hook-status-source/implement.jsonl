@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Core/Tauri backend boundaries for hook source"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Rust and hook-source quality expectations"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Snapshot contract and TypeScript parity"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "HUD shell UX and verification constraints"}
