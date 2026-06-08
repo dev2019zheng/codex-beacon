@@ -13,6 +13,7 @@ use chrono::TimeZone;
 use rusqlite::{Connection, OpenFlags};
 
 const CODEX_ACTIVE_WINDOW_SECONDS: i64 = 10 * 60;
+const CODEX_EXIT_SETTLE_SECONDS: i64 = 15;
 const CODEX_UPDATED_FALLBACK_SECONDS: i64 = 2 * 60;
 const CODEX_THREAD_QUERY_LIMIT: i64 = 50;
 const CODEX_TASK_DISPLAY_LIMIT: usize = 5;
@@ -64,28 +65,39 @@ fn recent_codex_activity(
 
     let conn = open_readonly_sqlite(logs_path)?;
     let cutoff_seconds = now.timestamp() - CODEX_ACTIVE_WINDOW_SECONDS;
+    let exit_settle_ms = CODEX_EXIT_SETTLE_SECONDS * 1000;
     let mut stmt = conn.prepare(
         r#"
-        WITH latest_thread_logs AS (
+        WITH thread_markers AS (
             SELECT
                 thread_id,
-                ts * 1000 + ts_nanos / 1000000 AS last_activity_ms,
-                COALESCE(feedback_log_body, '') AS feedback_log_body,
-                ROW_NUMBER() OVER (
-                    PARTITION BY thread_id
-                    ORDER BY ts DESC, ts_nanos DESC, id DESC
-                ) AS row_number
+                MAX(ts * 1000 + ts_nanos / 1000000) AS last_activity_ms,
+                MAX(
+                    CASE
+                        WHEN target = 'codex_core::session::handlers'
+                         AND feedback_log_body LIKE '%}: Agent loop exited'
+                        THEN ts * 1000 + ts_nanos / 1000000
+                    END
+                ) AS last_exit_ms
             FROM logs
             WHERE thread_id IS NOT NULL
               AND ts >= ?1
+              AND (
+                feedback_log_body LIKE '%run_sampling_request%'
+                OR feedback_log_body LIKE '%session_task.turn%'
+                OR (
+                    target = 'codex_core::session::handlers'
+                    AND feedback_log_body LIKE '%}: Agent loop exited'
+                )
+              )
+            GROUP BY thread_id
         )
         SELECT thread_id, last_activity_ms
-        FROM latest_thread_logs
-        WHERE row_number = 1
-          AND feedback_log_body NOT LIKE '%Agent loop exited%'
+        FROM thread_markers
+        WHERE last_activity_ms > COALESCE(last_exit_ms + ?2, 0)
         "#,
     )?;
-    let rows = stmt.query_map([cutoff_seconds], |row| {
+    let rows = stmt.query_map((cutoff_seconds, exit_settle_ms), |row| {
         let thread_id: String = row.get(0)?;
         let last_activity_ms: i64 = row.get(1)?;
         Ok((thread_id, last_activity_ms))
@@ -124,10 +136,6 @@ fn codex_app_tasks_from_state(
     let mut tasks = Vec::new();
     for row in rows {
         let (id, title, cwd, updated_at_ms) = row?;
-        if is_codex_desktop_chat_workspace(&cwd) {
-            continue;
-        }
-
         let is_active_from_logs = active_threads
             .get(&id)
             .is_some_and(|last_activity_ms| *last_activity_ms >= active_cutoff_ms);
@@ -151,31 +159,6 @@ fn codex_app_tasks_from_state(
     }
 
     Ok(tasks)
-}
-
-fn is_codex_desktop_chat_workspace(cwd: &str) -> bool {
-    let normalized = cwd.replace('\\', "/");
-    let Some((_, rest)) = normalized.split_once("/Documents/Codex/") else {
-        return false;
-    };
-
-    let mut segments = rest.split('/').filter(|segment| !segment.is_empty());
-    let Some(date_segment) = segments.next() else {
-        return false;
-    };
-
-    is_iso_date_segment(date_segment) && segments.next().is_some()
-}
-
-fn is_iso_date_segment(segment: &str) -> bool {
-    let bytes = segment.as_bytes();
-    bytes.len() == 10
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && bytes
-            .iter()
-            .enumerate()
-            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
 }
 
 fn open_readonly_sqlite(path: &Path) -> rusqlite::Result<Connection> {
@@ -329,30 +312,19 @@ mod tests {
         );
 
         let logs_conn = Connection::open(&logs_path).unwrap();
-        logs_conn
-            .execute_batch(
-                r#"
-                CREATE TABLE logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ts INTEGER NOT NULL,
-                    ts_nanos INTEGER NOT NULL,
-                    feedback_log_body TEXT,
-                    thread_id TEXT
-                );
-                "#,
-            )
-            .unwrap();
+        create_logs_schema(&logs_conn);
         insert_log(
             &logs_conn,
             "thread-finished",
             now.timestamp() - 4,
             "session_task.turn receiving_stream",
         );
-        insert_log(
+        insert_log_with_target(
             &logs_conn,
             "thread-finished",
             now.timestamp() - 1,
-            "Agent loop exited",
+            "codex_core::session::handlers",
+            "session_loop{thread_id=thread-finished}: Agent loop exited",
         );
 
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
@@ -366,7 +338,7 @@ mod tests {
     }
 
     #[test]
-    fn desktop_sqlite_source_excludes_codex_desktop_chat_workspaces() {
+    fn desktop_sqlite_source_includes_codex_desktop_chat_workspaces() {
         let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
             .unwrap()
             .with_timezone(&chrono::Utc);
@@ -407,19 +379,7 @@ mod tests {
         );
 
         let logs_conn = Connection::open(&logs_path).unwrap();
-        logs_conn
-            .execute_batch(
-                r#"
-                CREATE TABLE logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ts INTEGER NOT NULL,
-                    ts_nanos INTEGER NOT NULL,
-                    feedback_log_body TEXT,
-                    thread_id TEXT
-                );
-                "#,
-            )
-            .unwrap();
+        create_logs_schema(&logs_conn);
         insert_log(
             &logs_conn,
             "thread-chat",
@@ -437,8 +397,134 @@ mod tests {
         let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
 
         assert!(active_threads.contains_key("thread-chat"));
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].id, "thread-chat");
+        assert_eq!(tasks[1].id, "thread-project");
+
+        fs::remove_file(state_path).ok();
+        fs::remove_file(logs_path).ok();
+    }
+
+    #[test]
+    fn desktop_sqlite_source_treats_true_exit_as_terminal_despite_tail_logs() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let state_path = temp_sqlite_path("state-tail");
+        let logs_path = temp_sqlite_path("logs-tail");
+
+        let state_conn = Connection::open(&state_path).unwrap();
+        state_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    cwd TEXT NOT NULL,
+                    archived INTEGER NOT NULL,
+                    thread_source TEXT,
+                    updated_at INTEGER NOT NULL,
+                    updated_at_ms INTEGER
+                );
+                "#,
+            )
+            .unwrap();
+        insert_thread(
+            &state_conn,
+            "thread-tail",
+            "Stopped task with tail logs",
+            "/Users/example/codex-beacon",
+            "user",
+            now.timestamp_millis() - 1_000,
+        );
+
+        let logs_conn = Connection::open(&logs_path).unwrap();
+        create_logs_schema(&logs_conn);
+        insert_log(
+            &logs_conn,
+            "thread-tail",
+            now.timestamp() - 10,
+            "session_task.turn run_sampling_request",
+        );
+        insert_log_with_target(
+            &logs_conn,
+            "thread-tail",
+            now.timestamp() - 5,
+            "codex_core::session::handlers",
+            "session_loop{thread_id=thread-tail}: Agent loop exited",
+        );
+        insert_log(
+            &logs_conn,
+            "thread-tail",
+            now.timestamp() - 1,
+            "session_task.turn run_sampling_request tail log",
+        );
+
+        let active_threads = recent_codex_activity(&logs_path, now).unwrap();
+        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
+
+        assert!(active_threads.is_empty());
+        assert!(tasks.is_empty());
+
+        fs::remove_file(state_path).ok();
+        fs::remove_file(logs_path).ok();
+    }
+
+    #[test]
+    fn desktop_sqlite_source_reactivates_after_exit_settle_window() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let state_path = temp_sqlite_path("state-reactivated");
+        let logs_path = temp_sqlite_path("logs-reactivated");
+
+        let state_conn = Connection::open(&state_path).unwrap();
+        state_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    cwd TEXT NOT NULL,
+                    archived INTEGER NOT NULL,
+                    thread_source TEXT,
+                    updated_at INTEGER NOT NULL,
+                    updated_at_ms INTEGER
+                );
+                "#,
+            )
+            .unwrap();
+        insert_thread(
+            &state_conn,
+            "thread-reactivated",
+            "Reactivated task",
+            "/Users/example/codex-beacon",
+            "user",
+            now.timestamp_millis() - 1_000,
+        );
+
+        let logs_conn = Connection::open(&logs_path).unwrap();
+        create_logs_schema(&logs_conn);
+        insert_log_with_target(
+            &logs_conn,
+            "thread-reactivated",
+            now.timestamp() - 30,
+            "codex_core::session::handlers",
+            "session_loop{thread_id=thread-reactivated}: Agent loop exited",
+        );
+        insert_log(
+            &logs_conn,
+            "thread-reactivated",
+            now.timestamp() - 1,
+            "session_task.turn run_sampling_request",
+        );
+
+        let active_threads = recent_codex_activity(&logs_path, now).unwrap();
+        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
+
+        assert!(active_threads.contains_key("thread-reactivated"));
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].id, "thread-project");
+        assert_eq!(tasks[0].id, "thread-reactivated");
 
         fs::remove_file(state_path).ok();
         fs::remove_file(logs_path).ok();
@@ -459,25 +545,6 @@ mod tests {
         assert_eq!(tasks[0].id, "thread-active");
 
         fs::remove_file(state_path).ok();
-    }
-
-    #[test]
-    fn codex_desktop_chat_workspace_detection_matches_dated_documents_codex_dirs() {
-        assert!(is_codex_desktop_chat_workspace(
-            "/Users/example/Documents/Codex/2026-06-08/agent"
-        ));
-        assert!(is_codex_desktop_chat_workspace(
-            "/Users/example/Documents/Codex/2026-06-08/learning/thread"
-        ));
-        assert!(!is_codex_desktop_chat_workspace(
-            "/Users/example/Documents/Codex/codex-beacon"
-        ));
-        assert!(!is_codex_desktop_chat_workspace(
-            "/Users/example/codex-beacon"
-        ));
-        assert!(!is_codex_desktop_chat_workspace(
-            "/Users/example/Documents/Codex/2026-6-8/agent"
-        ));
     }
 
     fn create_state_fixture(path: &Path, now: chrono::DateTime<chrono::Utc>) {
@@ -525,18 +592,7 @@ mod tests {
 
     fn create_logs_fixture(path: &Path, now: chrono::DateTime<chrono::Utc>) {
         let conn = Connection::open(path).unwrap();
-        conn.execute_batch(
-            r#"
-            CREATE TABLE logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts INTEGER NOT NULL,
-                ts_nanos INTEGER NOT NULL,
-                feedback_log_body TEXT,
-                thread_id TEXT
-            );
-            "#,
-        )
-        .unwrap();
+        create_logs_schema(&conn);
 
         insert_log(
             &conn,
@@ -590,10 +646,46 @@ mod tests {
         .unwrap();
     }
 
+    fn create_logs_schema(conn: &Connection) {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts INTEGER NOT NULL,
+                ts_nanos INTEGER NOT NULL,
+                level TEXT,
+                target TEXT,
+                feedback_log_body TEXT,
+                thread_id TEXT
+            );
+            "#,
+        )
+        .unwrap();
+    }
+
     fn insert_log(conn: &Connection, thread_id: &str, ts: i64, body: &str) {
+        insert_log_with_target(conn, thread_id, ts, "codex_otel.log_only", body);
+    }
+
+    fn insert_log_with_target(
+        conn: &Connection,
+        thread_id: &str,
+        ts: i64,
+        target: &str,
+        body: &str,
+    ) {
         conn.execute(
-            "INSERT INTO logs (ts, ts_nanos, feedback_log_body, thread_id) VALUES (?1, 0, ?2, ?3)",
-            params![ts, body, thread_id],
+            r#"
+            INSERT INTO logs (
+                ts,
+                ts_nanos,
+                level,
+                target,
+                feedback_log_body,
+                thread_id
+            ) VALUES (?1, 0, 'DEBUG', ?2, ?3, ?4)
+            "#,
+            params![ts, target, body, thread_id],
         )
         .unwrap();
     }
