@@ -49,13 +49,15 @@ Rust backend/core changes must preserve the core-shell boundary and pass workspa
 - Default event log path is `~/.codex-beacon/events.jsonl`.
 - Hook JSONL rows use camelCase fields: `schemaVersion`, `timestamp`, `event`, `summary`, optional `sessionId`, optional `cwd`, optional `toolName`.
 - Hook rows must never include prompt text, tool arguments, command output, or model responses.
-- `BeaconSnapshot.source` must be one of `hooks`, `manual`, or `simulation`.
-- Tauri desktop defaults to hook-derived snapshots; browser preview remains simulation-only unless manual demo controls are used.
+- `BeaconSnapshot.source` must be one of `codex_app`, `hooks`, `manual`, or `simulation`.
+- Tauri desktop defaults to Codex Desktop local state when available, falls back to hook-derived snapshots, and browser preview remains simulation-only unless manual demo controls are used.
 
 ### 4. Validation & Error Matrix
 
-- Missing or unreadable hook log -> return a hooks/idle snapshot.
-- Empty hook log -> return a hooks/idle snapshot.
+- Missing or unreadable Codex Desktop DB -> fall back to hook state.
+- No active Desktop threads -> return a `codex_app`/idle snapshot.
+- Missing or unreadable hook log after Desktop fallback fails -> return a hooks/unknown snapshot.
+- Empty hook log after Desktop fallback fails -> return a hooks/unknown snapshot.
 - Malformed JSONL row -> skip that row and parse the rest.
 - Hook recorder write failure -> exit 0 after stderr note so Codex is not blocked.
 - Latest event older than ten minutes -> return hooks/idle.

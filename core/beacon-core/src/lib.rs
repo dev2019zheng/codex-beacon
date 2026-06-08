@@ -36,6 +36,7 @@ pub enum AlertLevel {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BeaconSnapshotSource {
+    CodexApp,
     Hooks,
     Manual,
     Simulation,
@@ -88,6 +89,15 @@ pub struct CodexHookEvent {
     pub cwd: Option<String>,
     #[serde(default)]
     pub tool_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexAppTask {
+    pub id: String,
+    pub title: String,
+    pub workspace: Option<String>,
+    pub updated_at: DateTime<Utc>,
 }
 
 pub fn builtin_themes() -> Vec<ThemeDescriptor> {
@@ -251,6 +261,38 @@ pub fn snapshot_from_hook_events(events: &[CodexHookEvent], now: DateTime<Utc>) 
     snapshot_from_tasks(status, vec![task], now, BeaconSnapshotSource::Hooks)
 }
 
+pub fn snapshot_from_codex_app_tasks(
+    tasks: Vec<CodexAppTask>,
+    now: DateTime<Utc>,
+) -> BeaconSnapshot {
+    if tasks.is_empty() {
+        return snapshot_from_tasks(
+            CodexTaskStatus::Idle,
+            Vec::new(),
+            now,
+            BeaconSnapshotSource::CodexApp,
+        );
+    }
+
+    let task_snapshots = tasks
+        .into_iter()
+        .map(|task| CodexTaskSnapshot {
+            id: format!("codex-app-{}", task.id),
+            title: compact_title(&task.title),
+            status: CodexTaskStatus::Running,
+            detail: codex_app_task_detail(task.workspace.as_deref()),
+            updated_at: task.updated_at,
+        })
+        .collect();
+
+    snapshot_from_tasks(
+        CodexTaskStatus::Running,
+        task_snapshots,
+        now,
+        BeaconSnapshotSource::CodexApp,
+    )
+}
+
 fn snapshot_from_tasks(
     fallback_status: CodexTaskStatus,
     tasks: Vec<CodexTaskSnapshot>,
@@ -351,6 +393,32 @@ fn task(
         detail: detail.to_string(),
         updated_at,
     }
+}
+
+fn compact_title(title: &str) -> String {
+    const MAX_CHARS: usize = 64;
+
+    let trimmed = title.trim();
+    if trimmed.chars().count() <= MAX_CHARS {
+        return trimmed.to_string();
+    }
+
+    let head: String = trimmed.chars().take(MAX_CHARS.saturating_sub(3)).collect();
+    format!("{head}...")
+}
+
+fn codex_app_task_detail(workspace: Option<&str>) -> String {
+    workspace
+        .and_then(workspace_name)
+        .map(|name| format!("Codex Desktop active in {name}"))
+        .unwrap_or_else(|| "Codex Desktop active thread".to_string())
+}
+
+fn workspace_name(workspace: &str) -> Option<&str> {
+    workspace
+        .trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .find(|segment| !segment.is_empty())
 }
 
 fn status_priority(status: &CodexTaskStatus) -> u8 {
@@ -454,6 +522,53 @@ mod tests {
 
         assert_eq!(snapshot.source, BeaconSnapshotSource::Hooks);
         assert_eq!(snapshot.overall_status, CodexTaskStatus::Idle);
+        assert!(snapshot.tasks.is_empty());
+    }
+
+    #[test]
+    fn codex_app_tasks_return_running_global_snapshot() {
+        let now = DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let tasks = vec![
+            CodexAppTask {
+                id: "thread-a".to_string(),
+                title: "Build the HUD".to_string(),
+                workspace: Some("/Users/example/codex-beacon".to_string()),
+                updated_at: now,
+            },
+            CodexAppTask {
+                id: "thread-b".to_string(),
+                title: "Compress CLI output".to_string(),
+                workspace: Some("/Users/example/kam-agent-cli".to_string()),
+                updated_at: now,
+            },
+        ];
+
+        let snapshot = snapshot_from_codex_app_tasks(tasks, now);
+
+        assert_eq!(snapshot.source, BeaconSnapshotSource::CodexApp);
+        assert_eq!(snapshot.overall_status, CodexTaskStatus::Running);
+        assert_eq!(snapshot.alert_level, AlertLevel::Soft);
+        assert_eq!(snapshot.active_count, 2);
+        assert_eq!(snapshot.tasks.len(), 2);
+        assert_eq!(
+            snapshot.tasks[1].detail,
+            "Codex Desktop active in kam-agent-cli"
+        );
+    }
+
+    #[test]
+    fn empty_codex_app_tasks_return_idle_snapshot() {
+        let now = DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+
+        let snapshot = snapshot_from_codex_app_tasks(Vec::new(), now);
+
+        assert_eq!(snapshot.source, BeaconSnapshotSource::CodexApp);
+        assert_eq!(snapshot.overall_status, CodexTaskStatus::Idle);
+        assert_eq!(snapshot.alert_level, AlertLevel::Silent);
         assert!(snapshot.tasks.is_empty());
     }
 }

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification must include cargo fmt, cargo test, and Tauri bundle checks for command/source changes."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Typecheck must prove the new source enum is mirrored in TypeScript."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Frontend build and Tauri shell build are required for HUD shell changes."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Check the end-to-end data contract from local SQLite through rendered task rows."}

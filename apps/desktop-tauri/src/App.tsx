@@ -54,6 +54,7 @@ const statusDetails: Record<CodexTaskStatus, string> = {
 };
 
 const sourceLabels: Record<BeaconSnapshotSource, string> = {
+  codex_app: "Codex",
   hooks: "Hooks",
   manual: "Manual",
   simulation: "Demo",

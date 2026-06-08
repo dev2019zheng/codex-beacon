@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Defines the core-shell boundary, IPC serialization requirements, and required Rust/Tauri verification for status source changes."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Defines where reusable core status behavior and Tauri-specific adapters belong."}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Requires TypeScript IPC payload types to stay aligned with beacon-core enums and structs."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Defines HUD shell contracts and verification commands for frontend and Tauri changes."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "This change spans SQLite source adapter, Rust core payloads, Tauri IPC, and React display."}

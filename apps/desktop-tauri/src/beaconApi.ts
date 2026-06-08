@@ -11,7 +11,7 @@ export type CodexTaskStatus =
 
 export type AlertLevel = "silent" | "soft" | "normal" | "strong";
 
-export type BeaconSnapshotSource = "hooks" | "manual" | "simulation";
+export type BeaconSnapshotSource = "codex_app" | "hooks" | "manual" | "simulation";
 
 export type BeaconViewMode = "card" | "capsule";
 
