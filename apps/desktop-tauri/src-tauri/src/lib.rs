@@ -124,6 +124,10 @@ fn codex_app_tasks_from_state(
     let mut tasks = Vec::new();
     for row in rows {
         let (id, title, cwd, updated_at_ms) = row?;
+        if is_codex_desktop_chat_workspace(&cwd) {
+            continue;
+        }
+
         let is_active_from_logs = active_threads
             .get(&id)
             .is_some_and(|last_activity_ms| *last_activity_ms >= active_cutoff_ms);
@@ -147,6 +151,31 @@ fn codex_app_tasks_from_state(
     }
 
     Ok(tasks)
+}
+
+fn is_codex_desktop_chat_workspace(cwd: &str) -> bool {
+    let normalized = cwd.replace('\\', "/");
+    let Some((_, rest)) = normalized.split_once("/Documents/Codex/") else {
+        return false;
+    };
+
+    let mut segments = rest.split('/').filter(|segment| !segment.is_empty());
+    let Some(date_segment) = segments.next() else {
+        return false;
+    };
+
+    is_iso_date_segment(date_segment) && segments.next().is_some()
+}
+
+fn is_iso_date_segment(segment: &str) -> bool {
+    let bytes = segment.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
 }
 
 fn open_readonly_sqlite(path: &Path) -> rusqlite::Result<Connection> {
@@ -337,6 +366,85 @@ mod tests {
     }
 
     #[test]
+    fn desktop_sqlite_source_excludes_codex_desktop_chat_workspaces() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let state_path = temp_sqlite_path("state-chat");
+        let logs_path = temp_sqlite_path("logs-chat");
+
+        let state_conn = Connection::open(&state_path).unwrap();
+        state_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    cwd TEXT NOT NULL,
+                    archived INTEGER NOT NULL,
+                    thread_source TEXT,
+                    updated_at INTEGER NOT NULL,
+                    updated_at_ms INTEGER
+                );
+                "#,
+            )
+            .unwrap();
+        insert_thread(
+            &state_conn,
+            "thread-chat",
+            "Learning chat",
+            "/Users/example/Documents/Codex/2026-06-08/agent",
+            "user",
+            now.timestamp_millis() - 1_000,
+        );
+        insert_thread(
+            &state_conn,
+            "thread-project",
+            "Project coding task",
+            "/Users/example/codex-beacon",
+            "user",
+            now.timestamp_millis() - 1_000,
+        );
+
+        let logs_conn = Connection::open(&logs_path).unwrap();
+        logs_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts INTEGER NOT NULL,
+                    ts_nanos INTEGER NOT NULL,
+                    feedback_log_body TEXT,
+                    thread_id TEXT
+                );
+                "#,
+            )
+            .unwrap();
+        insert_log(
+            &logs_conn,
+            "thread-chat",
+            now.timestamp() - 5,
+            "session_task.turn receiving_stream",
+        );
+        insert_log(
+            &logs_conn,
+            "thread-project",
+            now.timestamp() - 5,
+            "session_task.turn receiving_stream",
+        );
+
+        let active_threads = recent_codex_activity(&logs_path, now).unwrap();
+        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
+
+        assert!(active_threads.contains_key("thread-chat"));
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, "thread-project");
+
+        fs::remove_file(state_path).ok();
+        fs::remove_file(logs_path).ok();
+    }
+
+    #[test]
     fn desktop_sqlite_source_uses_recent_state_fallback_without_logs() {
         let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
             .unwrap()
@@ -351,6 +459,25 @@ mod tests {
         assert_eq!(tasks[0].id, "thread-active");
 
         fs::remove_file(state_path).ok();
+    }
+
+    #[test]
+    fn codex_desktop_chat_workspace_detection_matches_dated_documents_codex_dirs() {
+        assert!(is_codex_desktop_chat_workspace(
+            "/Users/example/Documents/Codex/2026-06-08/agent"
+        ));
+        assert!(is_codex_desktop_chat_workspace(
+            "/Users/example/Documents/Codex/2026-06-08/learning/thread"
+        ));
+        assert!(!is_codex_desktop_chat_workspace(
+            "/Users/example/Documents/Codex/codex-beacon"
+        ));
+        assert!(!is_codex_desktop_chat_workspace(
+            "/Users/example/codex-beacon"
+        ));
+        assert!(!is_codex_desktop_chat_workspace(
+            "/Users/example/Documents/Codex/2026-6-8/agent"
+        ));
     }
 
     fn create_state_fixture(path: &Path, now: chrono::DateTime<chrono::Utc>) {
