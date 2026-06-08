@@ -2,13 +2,12 @@ use std::{
     collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
-    sync::Mutex,
     time::Duration as StdDuration,
 };
 
 use beacon_core::{
-    parse_hook_events_jsonl, snapshot_for_status_with_source, snapshot_from_codex_app_tasks,
-    snapshot_from_hook_events, BeaconSnapshot, BeaconSnapshotSource, CodexAppTask, CodexTaskStatus,
+    parse_hook_events_jsonl, snapshot_from_codex_app_tasks, snapshot_from_hook_events,
+    BeaconSnapshot, CodexAppTask,
 };
 use chrono::TimeZone;
 use rusqlite::{Connection, OpenFlags};
@@ -18,47 +17,8 @@ const CODEX_UPDATED_FALLBACK_SECONDS: i64 = 2 * 60;
 const CODEX_THREAD_QUERY_LIMIT: i64 = 50;
 const CODEX_TASK_DISPLAY_LIMIT: usize = 5;
 
-#[derive(Default)]
-struct BeaconState {
-    manual_status: Mutex<Option<CodexTaskStatus>>,
-}
-
 #[tauri::command]
-fn get_beacon_snapshot(state: tauri::State<'_, BeaconState>) -> BeaconSnapshot {
-    let now = chrono::Utc::now();
-
-    if let Some(status) = state
-        .manual_status
-        .lock()
-        .expect("manual status lock poisoned")
-        .clone()
-    {
-        return snapshot_for_status_with_source(status, now, BeaconSnapshotSource::Manual);
-    }
-
-    automatic_snapshot(now)
-}
-
-#[tauri::command]
-fn set_manual_status(
-    state: tauri::State<'_, BeaconState>,
-    status: CodexTaskStatus,
-) -> BeaconSnapshot {
-    *state
-        .manual_status
-        .lock()
-        .expect("manual status lock poisoned") = Some(status.clone());
-
-    snapshot_for_status_with_source(status, chrono::Utc::now(), BeaconSnapshotSource::Manual)
-}
-
-#[tauri::command]
-fn clear_manual_status(state: tauri::State<'_, BeaconState>) -> BeaconSnapshot {
-    *state
-        .manual_status
-        .lock()
-        .expect("manual status lock poisoned") = None;
-
+fn get_beacon_snapshot() -> BeaconSnapshot {
     automatic_snapshot(chrono::Utc::now())
 }
 
@@ -72,8 +32,16 @@ fn snapshot_from_codex_app(now: chrono::DateTime<chrono::Utc>) -> Option<BeaconS
         return None;
     }
 
-    let active_threads = recent_codex_activity(&codex_logs_db_path(), now).unwrap_or_default();
-    let tasks = codex_app_tasks_from_state(&state_path, &active_threads, now).ok()?;
+    let logs_path = codex_logs_db_path();
+    let allow_recent_state_fallback = !logs_path.is_file();
+    let active_threads = recent_codex_activity(&logs_path, now).unwrap_or_default();
+    let tasks = codex_app_tasks_from_state(
+        &state_path,
+        &active_threads,
+        allow_recent_state_fallback,
+        now,
+    )
+    .ok()?;
 
     Some(snapshot_from_codex_app_tasks(tasks, now))
 }
@@ -98,12 +66,23 @@ fn recent_codex_activity(
     let cutoff_seconds = now.timestamp() - CODEX_ACTIVE_WINDOW_SECONDS;
     let mut stmt = conn.prepare(
         r#"
-        SELECT thread_id, MAX(ts * 1000 + ts_nanos / 1000000) AS last_activity_ms
-        FROM logs
-        WHERE thread_id IS NOT NULL
-          AND ts >= ?1
+        WITH latest_thread_logs AS (
+            SELECT
+                thread_id,
+                ts * 1000 + ts_nanos / 1000000 AS last_activity_ms,
+                COALESCE(feedback_log_body, '') AS feedback_log_body,
+                ROW_NUMBER() OVER (
+                    PARTITION BY thread_id
+                    ORDER BY ts DESC, ts_nanos DESC, id DESC
+                ) AS row_number
+            FROM logs
+            WHERE thread_id IS NOT NULL
+              AND ts >= ?1
+        )
+        SELECT thread_id, last_activity_ms
+        FROM latest_thread_logs
+        WHERE row_number = 1
           AND feedback_log_body NOT LIKE '%Agent loop exited%'
-        GROUP BY thread_id
         "#,
     )?;
     let rows = stmt.query_map([cutoff_seconds], |row| {
@@ -118,6 +97,7 @@ fn recent_codex_activity(
 fn codex_app_tasks_from_state(
     state_path: &Path,
     active_threads: &HashMap<String, i64>,
+    allow_recent_state_fallback: bool,
     now: chrono::DateTime<chrono::Utc>,
 ) -> rusqlite::Result<Vec<CodexAppTask>> {
     let conn = open_readonly_sqlite(state_path)?;
@@ -147,7 +127,8 @@ fn codex_app_tasks_from_state(
         let is_active_from_logs = active_threads
             .get(&id)
             .is_some_and(|last_activity_ms| *last_activity_ms >= active_cutoff_ms);
-        let is_recent_from_state = updated_at_ms >= fallback_cutoff_ms;
+        let is_recent_from_state =
+            allow_recent_state_fallback && updated_at_ms >= fallback_cutoff_ms;
 
         if !is_active_from_logs && !is_recent_from_state {
             continue;
@@ -247,13 +228,8 @@ fn home_dir() -> PathBuf {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(BeaconState::default())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            get_beacon_snapshot,
-            set_manual_status,
-            clear_manual_status
-        ])
+        .invoke_handler(tauri::generate_handler![get_beacon_snapshot])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -276,7 +252,7 @@ mod tests {
         create_logs_fixture(&logs_path, now);
 
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
-        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, now).unwrap();
+        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
 
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].id, "thread-active");
@@ -288,6 +264,93 @@ mod tests {
 
         fs::remove_file(state_path).ok();
         fs::remove_file(logs_path).ok();
+    }
+
+    #[test]
+    fn desktop_sqlite_source_excludes_threads_whose_latest_log_exited() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let state_path = temp_sqlite_path("state-exited");
+        let logs_path = temp_sqlite_path("logs-exited");
+
+        let state_conn = Connection::open(&state_path).unwrap();
+        state_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    cwd TEXT NOT NULL,
+                    archived INTEGER NOT NULL,
+                    thread_source TEXT,
+                    updated_at INTEGER NOT NULL,
+                    updated_at_ms INTEGER
+                );
+                "#,
+            )
+            .unwrap();
+        insert_thread(
+            &state_conn,
+            "thread-finished",
+            "Finished user thread",
+            "/Users/example/codex-beacon",
+            "user",
+            now.timestamp_millis() - 1_000,
+        );
+
+        let logs_conn = Connection::open(&logs_path).unwrap();
+        logs_conn
+            .execute_batch(
+                r#"
+                CREATE TABLE logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts INTEGER NOT NULL,
+                    ts_nanos INTEGER NOT NULL,
+                    feedback_log_body TEXT,
+                    thread_id TEXT
+                );
+                "#,
+            )
+            .unwrap();
+        insert_log(
+            &logs_conn,
+            "thread-finished",
+            now.timestamp() - 4,
+            "session_task.turn receiving_stream",
+        );
+        insert_log(
+            &logs_conn,
+            "thread-finished",
+            now.timestamp() - 1,
+            "Agent loop exited",
+        );
+
+        let active_threads = recent_codex_activity(&logs_path, now).unwrap();
+        let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
+
+        assert!(active_threads.is_empty());
+        assert!(tasks.is_empty());
+
+        fs::remove_file(state_path).ok();
+        fs::remove_file(logs_path).ok();
+    }
+
+    #[test]
+    fn desktop_sqlite_source_uses_recent_state_fallback_without_logs() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        let state_path = temp_sqlite_path("state-fallback");
+
+        create_state_fixture(&state_path, now);
+
+        let tasks = codex_app_tasks_from_state(&state_path, &HashMap::new(), true, now).unwrap();
+
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].id, "thread-active");
+
+        fs::remove_file(state_path).ok();
     }
 
     fn create_state_fixture(path: &Path, now: chrono::DateTime<chrono::Utc>) {

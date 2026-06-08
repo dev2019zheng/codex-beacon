@@ -11,6 +11,7 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 - Keep fixed or bounded dimensions for HUD controls so status text changes do not resize the window unpredictably.
 - Use `title` and `aria-label` for compact icon/symbol controls.
 - Keep browser preview working through the adapter fallback so visual checks can run without a Tauri runtime.
+- Keep demo or simulation controls out of the product HUD; browser fallback may simulate snapshots, but the Tauri shell must stay read-only.
 
 ## Forbidden Patterns
 
@@ -47,6 +48,7 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 
 - Card mode target size is `480x272`; capsule mode target size is `280x52`.
 - Tauri window APIs stay behind `beaconApi.ts`; React components should call the adapter, not import Tauri window modules directly.
+- The HUD is read-only for Codex status. Do not expose manual status setters or debug status buttons in production UI.
 - Tauri capsule resizing requires `core:window:allow-set-size` in `src-tauri/capabilities/default.json`.
 - Explicit native dragging requires `core:window:allow-start-dragging` in `src-tauri/capabilities/default.json` and should be exposed through the adapter.
 - Transparent macOS HUD windows require both `app.macOSPrivateApi = true` in `tauri.conf.json` and the Rust `tauri/macos-private-api` feature.

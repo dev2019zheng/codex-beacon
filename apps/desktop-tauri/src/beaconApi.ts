@@ -12,7 +12,7 @@ export type CodexTaskStatus =
 
 export type AlertLevel = "silent" | "soft" | "normal" | "strong";
 
-export type BeaconSnapshotSource = "codex_app" | "hooks" | "manual" | "simulation";
+export type BeaconSnapshotSource = "codex_app" | "hooks" | "simulation";
 
 export type BeaconViewMode = "card" | "capsule";
 
@@ -42,7 +42,7 @@ export type BeaconSnapshot = {
   updatedAt: string;
 };
 
-export const statusOptions: CodexTaskStatus[] = [
+const browserStatusSequence: CodexTaskStatus[] = [
   "running",
   "waiting_approval",
   "waiting_input",
@@ -53,7 +53,6 @@ export const statusOptions: CodexTaskStatus[] = [
 ];
 
 let browserTick = 0;
-let browserManualStatus: CodexTaskStatus | null = null;
 
 export async function getBeaconSnapshot() {
   const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("get_beacon_snapshot");
@@ -61,32 +60,10 @@ export async function getBeaconSnapshot() {
     return tauriSnapshot;
   }
 
-  const status = browserManualStatus ?? statusOptions[browserTick % 5];
-  const source = browserManualStatus ? "manual" : "simulation";
+  const status = browserStatusSequence[browserTick % browserStatusSequence.length];
   browserTick += 1;
 
-  return browserSnapshot(status, source);
-}
-
-export async function setBeaconManualStatus(status: CodexTaskStatus) {
-  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("set_manual_status", { status });
-  if (tauriSnapshot) {
-    return tauriSnapshot;
-  }
-
-  browserManualStatus = status;
-  return browserSnapshot(status, "manual");
-}
-
-export async function clearBeaconManualStatus() {
-  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("clear_manual_status");
-  if (tauriSnapshot) {
-    return tauriSnapshot;
-  }
-
-  browserManualStatus = null;
-  browserTick = 0;
-  return browserSnapshot("running", "simulation");
+  return browserSnapshot(status, "simulation");
 }
 
 export async function setBeaconWindowMode(mode: BeaconViewMode) {

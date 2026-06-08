@@ -8,7 +8,7 @@ The frontend is TypeScript strict mode. Types that mirror Rust IPC payloads must
 
 - Define Tauri IPC payload types in `apps/desktop-tauri/src/beaconApi.ts`.
 - Keep `CodexTaskStatus`, `AlertLevel`, `CodexTaskSnapshot`, `ThemeDescriptor`, and `BeaconSnapshot` aligned with `beacon-core`.
-- Keep `BeaconSnapshot.source` aligned with the Rust `BeaconSnapshotSource` enum: `codex_app`, `hooks`, `manual`, or `simulation`.
+- Keep `BeaconSnapshot.source` aligned with the Rust `BeaconSnapshotSource` enum: `codex_app`, `hooks`, or `simulation`.
 - Use `camelCase` field names in TypeScript because Rust payload structs serialize with `#[serde(rename_all = "camelCase")]`.
 
 ## Validation

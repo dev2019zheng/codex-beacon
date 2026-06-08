@@ -217,7 +217,6 @@ button {
 
 .beacon-icon-button,
 .beacon-capsule-orb-button,
-.beacon-debug-controls button,
 .beacon-theme-select {
   border: 1px solid rgba(255, 255, 255, 0.095);
   border-radius: var(--beacon-radius-sm);
@@ -250,7 +249,6 @@ button {
 
 .beacon-icon-button:hover,
 .beacon-capsule-orb-button:hover,
-.beacon-debug-controls button:hover,
 .beacon-theme-select:hover {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.075);
@@ -258,14 +256,12 @@ button {
 }
 
 .beacon-icon-button:active,
-.beacon-capsule-orb-button:active,
-.beacon-debug-controls button:active {
+.beacon-capsule-orb-button:active {
   transform: scale(0.96);
 }
 
 .beacon-icon-button:focus-visible,
 .beacon-capsule-orb-button:focus-visible,
-.beacon-debug-controls button:focus-visible,
 .beacon-theme-select:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--state-color) 72%, white);
   outline-offset: 2px;
@@ -565,31 +561,35 @@ button {
   opacity: 0.68;
 }
 
-.beacon-debug-controls {
+.beacon-source-readout {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  gap: 2px 8px;
+  min-height: 68px;
+  padding: 10px;
   overflow: hidden;
-  opacity: 0.46;
-  transition: opacity var(--beacon-motion-fast) var(--beacon-ease-standard);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: var(--beacon-radius-md);
+  background: rgba(255, 255, 255, 0.028);
+  color: rgba(229, 231, 235, 0.54);
 }
 
-.beacon-debug-controls:hover {
-  opacity: 0.86;
+.beacon-source-readout span {
+  overflow: hidden;
+  font-size: var(--beacon-fs-caption);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.beacon-debug-controls button {
-  min-width: 0;
-  height: 22px;
-  padding: 0;
-  color: rgba(229, 231, 235, 0.66);
-  cursor: pointer;
-  font-size: 10px;
-}
-
-.beacon-debug-controls button:first-child {
-  grid-column: span 2;
-  padding: 0 4px;
+.beacon-source-readout strong {
+  grid-row: span 2;
+  align-self: center;
+  color: color-mix(in srgb, var(--state-color) 76%, white);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 22px;
 }
 
 .beacon-error {

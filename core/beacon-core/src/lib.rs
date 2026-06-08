@@ -38,7 +38,6 @@ pub enum AlertLevel {
 pub enum BeaconSnapshotSource {
     CodexApp,
     Hooks,
-    Manual,
     Simulation,
 }
 

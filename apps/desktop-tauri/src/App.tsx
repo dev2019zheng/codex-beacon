@@ -6,12 +6,9 @@ import {
   BeaconViewMode,
   CodexTaskSnapshot,
   CodexTaskStatus,
-  clearBeaconManualStatus,
   getBeaconSnapshot,
-  setBeaconManualStatus,
   startBeaconWindowDrag,
   setBeaconWindowMode,
-  statusOptions,
 } from "./beaconApi";
 import "./App.css";
 
@@ -58,7 +55,6 @@ const statusDetails: Record<CodexTaskStatus, string> = {
 const sourceLabels: Record<BeaconSnapshotSource, string> = {
   codex_app: "Codex",
   hooks: "Hooks",
-  manual: "Manual",
   simulation: "Demo",
 };
 
@@ -109,18 +105,6 @@ function App() {
     }
   }
 
-  async function setManualStatus(status: CodexTaskStatus) {
-    const next = await setBeaconManualStatus(status);
-    setSnapshot(next);
-    setError(null);
-  }
-
-  async function clearManualStatus() {
-    const next = await clearBeaconManualStatus();
-    setSnapshot(next);
-    setError(null);
-  }
-
   async function toggleViewMode() {
     const nextMode = viewMode === "card" ? "capsule" : "card";
     setViewMode(nextMode);
@@ -159,9 +143,7 @@ function App() {
       selectedTheme={selectedTheme}
       onRefresh={refreshSnapshot}
       onToggleViewMode={toggleViewMode}
-      onClearManualStatus={clearManualStatus}
       onSelectTheme={setSelectedTheme}
-      onSetManualStatus={setManualStatus}
       onStartDrag={startWindowDrag}
     />
   );
@@ -174,9 +156,7 @@ function BeaconHUD({
   selectedTheme,
   onRefresh,
   onToggleViewMode,
-  onClearManualStatus,
   onSelectTheme,
-  onSetManualStatus,
   onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
@@ -185,9 +165,7 @@ function BeaconHUD({
   selectedTheme: string;
   onRefresh: () => void;
   onToggleViewMode: () => void;
-  onClearManualStatus: () => void;
   onSelectTheme: (themeId: string) => void;
-  onSetManualStatus: (status: CodexTaskStatus) => void;
   onStartDrag: () => void;
 }) {
   return (
@@ -206,9 +184,7 @@ function BeaconHUD({
             selectedTheme={selectedTheme}
             onRefresh={onRefresh}
             onToggleViewMode={onToggleViewMode}
-            onClearManualStatus={onClearManualStatus}
             onSelectTheme={onSelectTheme}
-            onSetManualStatus={onSetManualStatus}
             onStartDrag={onStartDrag}
           />
         ) : (
@@ -230,9 +206,7 @@ function BeaconCard({
   selectedTheme,
   onRefresh,
   onToggleViewMode,
-  onClearManualStatus,
   onSelectTheme,
-  onSetManualStatus,
   onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
@@ -240,9 +214,7 @@ function BeaconCard({
   selectedTheme: string;
   onRefresh: () => void;
   onToggleViewMode: () => void;
-  onClearManualStatus: () => void;
   onSelectTheme: (themeId: string) => void;
-  onSetManualStatus: (status: CodexTaskStatus) => void;
   onStartDrag: () => void;
 }) {
   const visibleTasks = useMemo(() => visibleTaskRows(snapshot), [snapshot]);
@@ -293,9 +265,7 @@ function BeaconCard({
         <FooterControls
           snapshot={snapshot}
           selectedTheme={selectedTheme}
-          onClearManualStatus={onClearManualStatus}
           onSelectTheme={onSelectTheme}
-          onSetManualStatus={onSetManualStatus}
         />
       </footer>
 
@@ -426,16 +396,14 @@ function TaskList({ tasks }: { tasks: CodexTaskSnapshot[] }) {
 function FooterControls({
   snapshot,
   selectedTheme,
-  onClearManualStatus,
   onSelectTheme,
-  onSetManualStatus,
 }: {
   snapshot: BeaconSnapshot;
   selectedTheme: string;
-  onClearManualStatus: () => void;
   onSelectTheme: (themeId: string) => void;
-  onSetManualStatus: (status: CodexTaskStatus) => void;
 }) {
+  const taskCount = snapshot.tasks.length;
+
   return (
     <div className="beacon-footer-controls">
       <select
@@ -450,21 +418,10 @@ function FooterControls({
           </option>
         ))}
       </select>
-      <div className="beacon-debug-controls" aria-label="Debug status controls">
-        <button type="button" onClick={onClearManualStatus}>
-          Auto
-        </button>
-        {statusOptions.map((status) => (
-          <button
-            type="button"
-            key={status}
-            title={statusTaskLabels[status]}
-            aria-label={statusTaskLabels[status]}
-            onClick={() => onSetManualStatus(status)}
-          >
-            {statusGlyphs[status]}
-          </button>
-        ))}
+      <div className="beacon-source-readout" aria-label="状态源">
+        <span>{sourceLabels[snapshot.source]}</span>
+        <strong>{taskCount}</strong>
+        <span>任务</span>
       </div>
     </div>
   );

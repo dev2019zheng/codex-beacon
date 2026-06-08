@@ -1,0 +1,2 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend and Tauri verification commands for shell changes."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Type-level check that removed manual source no longer leaks into TS UI."}
