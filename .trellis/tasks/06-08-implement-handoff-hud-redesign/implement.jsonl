@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Frontend file ownership and shell adapter boundaries"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "HUD compact UI quality and visual checks"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "BeaconSnapshot contract parity"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Tauri window shell and build checks"}

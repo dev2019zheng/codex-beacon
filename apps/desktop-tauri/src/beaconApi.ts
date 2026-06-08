@@ -13,6 +13,8 @@ export type AlertLevel = "silent" | "soft" | "normal" | "strong";
 
 export type BeaconSnapshotSource = "hooks" | "manual" | "simulation";
 
+export type BeaconViewMode = "card" | "capsule";
+
 export type CodexTaskSnapshot = {
   id: string;
   title: string;
@@ -84,6 +86,20 @@ export async function clearBeaconManualStatus() {
   return browserSnapshot("running", "simulation");
 }
 
+export async function setBeaconWindowMode(mode: BeaconViewMode) {
+  if (!hasTauriRuntime) {
+    return;
+  }
+
+  const [{ getCurrentWindow }, { LogicalSize }] = await Promise.all([
+    import("@tauri-apps/api/window"),
+    import("@tauri-apps/api/dpi"),
+  ]);
+  const size = mode === "card" ? new LogicalSize(360, 176) : new LogicalSize(240, 48);
+
+  await getCurrentWindow().setSize(size);
+}
+
 function browserSnapshot(status: CodexTaskStatus, source: BeaconSnapshotSource): BeaconSnapshot {
   const now = new Date().toISOString();
   const tasks = tasksForStatus(status, now);
@@ -126,22 +142,22 @@ function tasksForStatus(status: CodexTaskStatus, updatedAt: string): CodexTaskSn
       return [];
     case "running":
       return [
-        task("task-frontend", "HUD shell", "running", "Building the floating status view", updatedAt),
-        task("task-core", "Rust core", "running", "Normalizing simulated Codex state", updatedAt),
+        task("task-frontend", "悬浮窗外壳", "running", "正在渲染状态视图", updatedAt),
+        task("task-core", "Rust 状态核心", "running", "正在归一化 Codex 状态", updatedAt),
       ];
     case "waiting_approval":
       return [
-        task("task-release", "Preview release", "waiting_approval", "Waiting for command approval", updatedAt),
-        task("task-hud", "HUD polish", "running", "Rendering translucent overlay", updatedAt),
+        task("task-release", "预览版发布", "waiting_approval", "等待命令确认", updatedAt),
+        task("task-hud", "HUD 打磨", "running", "正在渲染半透明层", updatedAt),
       ];
     case "waiting_input":
-      return [task("task-requirements", "Theme decision", "waiting_input", "Needs user input before continuing", updatedAt)];
+      return [task("task-requirements", "主题决策", "waiting_input", "需要输入后继续", updatedAt)];
     case "completed":
-      return [task("task-mvp", "MVP scaffold", "completed", "Ready for review", updatedAt)];
+      return [task("task-mvp", "MVP 脚手架", "completed", "已准备好验收", updatedAt)];
     case "failed":
-      return [task("task-build", "Tauri build", "failed", "Build failed in verification", updatedAt)];
+      return [task("task-build", "Tauri 构建", "failed", "验证阶段构建失败", updatedAt)];
     case "unknown":
-      return [task("task-unknown", "Codex status", "unknown", "No recent state source available", updatedAt)];
+      return [task("task-unknown", "Codex 状态源", "unknown", "暂无可用状态", updatedAt)];
   }
 }
 

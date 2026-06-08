@@ -28,3 +28,59 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 - Does the HUD remain readable in a small window?
 - Are strong waiting alerts visually distinct from running/completed states?
 - Does the browser preview still render without Tauri IPC?
+
+## Scenario: Beacon HUD Shell Contract
+
+### 1. Scope / Trigger
+
+- Trigger: visual or interaction work on the desktop HUD, including new shells/themes, card/capsule mode changes, or native window sizing.
+- Goal: keep the UI replaceable as a shell over the status core rather than coupling a theme to Codex/Tauri internals.
+
+### 2. Signatures
+
+- Snapshot input: `BeaconSnapshot` from `apps/desktop-tauri/src/beaconApi.ts`.
+- Task rows: `CodexTaskSnapshot[]` with `id`, `title`, `status`, `detail`, and `updatedAt`.
+- View mode adapter: `setBeaconWindowMode(mode: "card" | "capsule")`.
+- Shell state marker: `.beacon-window[data-status="<CodexTaskStatus>"]`.
+
+### 3. Contracts
+
+- Card mode target size is `360x176`; capsule mode target size is `240x48`.
+- Tauri window APIs stay behind `beaconApi.ts`; React components should call the adapter, not import Tauri window modules directly.
+- Themes/shells read status from `BeaconSnapshot` props and CSS data attributes. They must not parse Codex logs, hook files, or process state directly.
+- Status colors and alert effects belong in CSS variables such as `--state-color`, `--state-glow`, and `--state-soft`.
+
+### 4. Validation & Error Matrix
+
+- Missing Tauri runtime -> browser fallback returns a simulated snapshot and `setBeaconWindowMode` is a no-op.
+- Window resize failure -> keep the current React mode visible and surface the error through the shell error slot.
+- Long title/detail text -> truncate inside its row; the HUD window must not grow or wrap unpredictably.
+- Empty task list -> render an idle/empty affordance instead of blank space.
+
+### 5. Good/Base/Bad Cases
+
+- Good: a mascot theme receives the same `BeaconSnapshot` and replaces only visual presentation plus optional motion.
+- Base: card and capsule modes render the same overall status, counts, and updated time in different densities.
+- Bad: a shell imports `@tauri-apps/api/window` directly or reads `.codex` state files from React.
+
+### 6. Tests Required
+
+- Run `pnpm --filter @codex-beacon/desktop typecheck`.
+- Run `pnpm --filter @codex-beacon/desktop build`.
+- Run `pnpm --filter @codex-beacon/desktop tauri:build --bundles app` when native window sizing or Tauri config changes.
+- Capture/inspect card and capsule previews after visual changes.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+import { getCurrentWindow } from "@tauri-apps/api/window";
+await getCurrentWindow().setSize(...);
+```
+
+#### Correct
+
+```typescript
+await setBeaconWindowMode("capsule");
+```
