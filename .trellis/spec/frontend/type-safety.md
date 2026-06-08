@@ -1,51 +1,29 @@
-# Type Safety
-
-> Type safety patterns in this project.
-
----
+# Frontend Type Safety
 
 ## Overview
 
-<!--
-Document your project's type safety conventions here.
-
-Questions to answer:
-- What type system do you use?
-- How are types organized?
-- What validation library do you use?
-- How do you handle type inference?
--->
-
-(To be filled by the team)
-
----
+The frontend is TypeScript strict mode. Types that mirror Rust IPC payloads must stay explicit and local to the shell adapter until generated bindings are introduced.
 
 ## Type Organization
 
-<!-- Where types are defined, shared types vs local types -->
-
-(To be filled by the team)
-
----
+- Define Tauri IPC payload types in `apps/desktop-tauri/src/beaconApi.ts`.
+- Keep `CodexTaskStatus`, `AlertLevel`, `CodexTaskSnapshot`, `ThemeDescriptor`, and `BeaconSnapshot` aligned with `beacon-core`.
+- Use `camelCase` field names in TypeScript because Rust payload structs serialize with `#[serde(rename_all = "camelCase")]`.
 
 ## Validation
 
-<!-- Runtime validation patterns (Zod, Yup, io-ts, etc.) -->
-
-(To be filled by the team)
-
----
+MVP trusts Tauri command payloads. When real Codex state sources are added, validate input at the Rust core/source boundary before exposing a `BeaconSnapshot`.
 
 ## Common Patterns
 
-<!-- Type utilities, generics, type guards -->
+```typescript
+const hasTauriRuntime = "__TAURI_INTERNALS__" in window;
+```
 
-(To be filled by the team)
-
----
+Use a browser-preview fallback only in the shell adapter. Components should call adapter functions such as `getBeaconSnapshot()` rather than importing `invoke` directly.
 
 ## Forbidden Patterns
 
-<!-- any, type assertions, etc. -->
-
-(To be filled by the team)
+- Do not use `any` for Beacon payloads.
+- Do not call Tauri commands directly from multiple components.
+- Do not make `tsc -b` emit `vite.config.js` or `.d.ts` files. Use `tsc --noEmit -p ...` for typecheck scripts.

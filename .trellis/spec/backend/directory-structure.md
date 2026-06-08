@@ -1,54 +1,32 @@
-# Directory Structure
-
-> How backend code is organized in this project.
-
----
+# Backend Directory Structure
 
 ## Overview
 
-<!--
-Document your project's backend directory structure here.
-
-Questions to answer:
-- How are modules/packages organized?
-- Where does business logic live?
-- Where are API endpoints defined?
-- How are utilities and helpers organized?
--->
-
-(To be filled by the team)
-
----
+Backend-like code for Codex Beacon lives in Rust workspace crates. The core crate owns status contracts and pure state behavior. Desktop shell crates expose Tauri commands and adapt the core to app windows.
 
 ## Directory Layout
 
+```text
+core/
+  beacon-core/          # Pure status model, snapshot construction, tests
+apps/
+  desktop-tauri/
+    src-tauri/          # Tauri shell, commands, window config
 ```
-<!-- Replace with your actual structure -->
-src/
-├── ...
-└── ...
-```
-
----
 
 ## Module Organization
 
-<!-- How should new features/modules be organized? -->
-
-(To be filled by the team)
-
----
+- Put reusable status models and state-machine behavior in `core/beacon-core`.
+- Put Tauri-specific command handlers and application startup in `apps/desktop-tauri/src-tauri`.
+- Do not make themes or frontend components read Codex files directly; expose status through shell commands or a future bridge API.
 
 ## Naming Conventions
 
-<!-- File and folder naming rules -->
-
-(To be filled by the team)
-
----
+- Rust crates use kebab-case package names.
+- Serialized status payloads use `camelCase` fields and `snake_case` enum values.
+- Command names are action-oriented, for example `get_beacon_snapshot` and `set_manual_status`.
 
 ## Examples
 
-<!-- Link to well-organized modules as examples -->
-
-(To be filled by the team)
+- `core/beacon-core/src/lib.rs` defines `BeaconSnapshot`, `CodexTaskSnapshot`, `CodexTaskStatus`, and alert mapping.
+- `apps/desktop-tauri/src-tauri/src/lib.rs` adapts Tauri commands to the core crate.
