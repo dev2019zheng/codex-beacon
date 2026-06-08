@@ -87,25 +87,17 @@ GitHub 文档支持在 `push` 事件上用 `branches` 过滤分支、用 `tags` 
 Tauri 官方 DMG 构建命令：
 
 ```bash
-pnpm tauri build --bundles dmg
+pnpm --filter @codex-beacon/desktop tauri:build --bundles dmg
 ```
 
-等项目 scaffold 后，workflow 优先使用 `tauri-apps/tauri-action@v1`。该 action 可以构建 Tauri app，创建 GitHub Release，并上传 bundle artifacts。
-
-推荐先支持两种实现路径：
-
-1. **Action 托管发布**
-   使用 `tauri-apps/tauri-action@v1`，由 action 创建/更新 release 并上传 artifacts。实现最短，适合 MVP。
-
-2. **手动上传发布**
-   手动执行 `pnpm tauri build --bundles dmg`，再用 `gh release create/upload` 上传 DMG。适合作为本地排障或 action 无法满足签名流程时的备用路径。
+当前 workflow 使用手动上传发布：先执行 Tauri CLI 生成 DMG，再用 `gh release create/upload` 创建或更新 GitHub Release。这个路径更容易控制 preview 覆盖语义。
 
 ## macOS 架构策略
 
 优先目标：一个 universal DMG。
 
 ```bash
-pnpm tauri build --target universal-apple-darwin --bundles dmg
+pnpm --filter @codex-beacon/desktop tauri:build --target universal-apple-darwin --bundles dmg
 ```
 
 Tauri CLI 支持 `universal-apple-darwin`，但要求同时安装 `aarch64-apple-darwin` 和 `x86_64-apple-darwin` Rust targets。
@@ -145,108 +137,24 @@ APPLE_API_KEY_PATH or APPLE_API_KEY_CONTENT
 - `signed`: 已签名但未公证，只用于临时验证。
 - `notarized`: 正式发布，可标记 latest。
 
-## Workflow 草案
+## Workflows
 
-项目 scaffold 后落地为两个 workflow：
+仓库已落地两个 workflow：
 
 - `.github/workflows/preview.yml`: `master` 合入后覆盖 `preview` 预览版。
 - `.github/workflows/release.yml`: `vX.Y.Z` tag 后发布正式版。
 
-### Preview workflow 草案
+### Preview workflow
 
-```yaml
-name: preview
+Implemented in `.github/workflows/preview.yml`.
 
-on:
-  push:
-    branches:
-      - "master"
+Behavior:
 
-permissions:
-  contents: write
-
-jobs:
-  build-macos-dmg:
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            arch: aarch64
-          - target: x86_64-apple-darwin
-            arch: x64
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build DMG
-        run: pnpm tauri build --target ${{ matrix.target }} --bundles dmg
-
-      - name: Normalize asset name
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release-assets
-          dmg="$(find ./apps/desktop-tauri/src-tauri/target -path '*/bundle/dmg/*.dmg' -print -quit)"
-          cp "$dmg" "release-assets/Codex.Beacon-preview-${{ matrix.arch }}.dmg"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: preview-dmg-${{ matrix.arch }}
-          path: release-assets/*.dmg
-
-  publish-preview:
-    runs-on: ubuntu-latest
-    needs: build-macos-dmg
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: preview-dmg-*
-          path: release-assets
-          merge-multiple: true
-
-      - name: Move preview tag
-        run: |
-          git tag -f preview "$GITHUB_SHA"
-          git push origin refs/tags/preview --force
-
-      - name: Create or update preview release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view preview >/dev/null 2>&1 || \
-            gh release create preview \
-              --title "Codex Beacon Preview" \
-              --prerelease \
-              --latest=false \
-              --target "$GITHUB_SHA"
-
-          gh release edit preview \
-            --title "Codex Beacon Preview" \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --notes "Preview build from ${GITHUB_SHA}. Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-          gh release upload preview release-assets/*.dmg --clobber
-```
+- Runs on every push to `master`.
+- Builds separate Apple Silicon and Intel macOS DMG assets.
+- Moves the fixed `preview` tag to the pushed commit.
+- Creates or updates the `Codex Beacon Preview` prerelease.
+- Uploads fixed asset names with `gh release upload --clobber`, so preview DMGs are overwritten instead of accumulating.
 
 Notes:
 
@@ -255,73 +163,30 @@ Notes:
 - preview 拆成 `build-macos-dmg` 和 `publish-preview`，发布动作只执行一次，避免 matrix job 并发移动同一个 tag 或同时编辑同一个 Release。
 - preview 默认标记为 prerelease。GitHub latest release 只选择 non-prerelease、non-draft release；创建 preview 时仍显式使用 `--latest=false`，避免污染正式 latest。
 
-### Release workflow 草案
+### Release workflow
 
-```yaml
-name: release
+Implemented in `.github/workflows/release.yml`.
 
-on:
-  push:
-    tags:
-      - "v*"
+Behavior:
 
-permissions:
-  contents: write
-
-jobs:
-  macos-dmg:
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-          - target: x86_64-apple-darwin
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
-
-      - uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Codex Beacon ${{ github.ref_name }}"
-          releaseBody: "See attached DMG assets to install Codex Beacon."
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          args: "--target ${{ matrix.target }} --bundles dmg"
-```
+- Runs on pushes to tags matching `v*`.
+- Builds separate Apple Silicon and Intel macOS DMG assets.
+- Creates the matching GitHub Release when missing.
+- Treats tags containing `-` as prereleases.
+- Uploads DMG assets with fixed tag-and-arch names.
 
 Notes:
 
-- 这个 workflow 是草案，等 `apps/desktop-tauri` scaffold 后需要补 `projectPath`、包管理器和 frontend build 命令。
+- 当前 workflow 使用手动 `gh release` 发布：build job 只生成 DMG artifact，publish job 单点创建/更新 Release 并上传 assets。
 - 如果采用 universal DMG，matrix 可替换为单 target `universal-apple-darwin`。
-- `APPLE_API_KEY_PATH` 在 GitHub Secrets 中不能直接保存文件路径；实际实现时更推荐保存 key 内容，再在 workflow 中写入临时 `.p8` 文件。
+- 签名和公证 secrets 还未接入 workflow；实际生产发布时更推荐保存 Apple API key 内容，再在 workflow 中写入临时 `.p8` 文件。
 
 ## 本地备用命令
 
 创建 release 但要求 tag 已存在：
 
 ```bash
-gh release create v0.1.0 ./apps/desktop-tauri/src-tauri/target/**/bundle/dmg/*.dmg \
+gh release create v0.1.0 ./target/**/bundle/dmg/*.dmg \
   --verify-tag \
   --generate-notes \
   --title "Codex Beacon v0.1.0"

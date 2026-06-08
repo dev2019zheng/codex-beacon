@@ -53,3 +53,8 @@ pnpm build
 ```
 
 Release-channel planning lives in `docs/release-pipeline.md`.
+
+GitHub Actions builds macOS DMG assets:
+
+- `master` pushes update the overwriteable `preview` prerelease.
+- `v*` tags create or update the matching GitHub Release.
