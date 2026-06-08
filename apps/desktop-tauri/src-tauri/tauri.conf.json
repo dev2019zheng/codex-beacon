@@ -14,12 +14,12 @@
     "windows": [
       {
         "title": "Codex Beacon",
-        "width": 360,
-        "height": 176,
-        "minWidth": 124,
-        "minHeight": 44,
-        "maxWidth": 388,
-        "maxHeight": 220,
+        "width": 480,
+        "height": 272,
+        "minWidth": 180,
+        "minHeight": 52,
+        "maxWidth": 560,
+        "maxHeight": 340,
         "resizable": false,
         "decorations": false,
         "transparent": true,

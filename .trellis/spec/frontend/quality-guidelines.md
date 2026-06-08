@@ -45,9 +45,10 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 
 ### 3. Contracts
 
-- Card mode target size is `360x176`; capsule mode target size is `240x48`.
+- Card mode target size is `480x272`; capsule mode target size is `280x52`.
 - Tauri window APIs stay behind `beaconApi.ts`; React components should call the adapter, not import Tauri window modules directly.
 - Tauri capsule resizing requires `core:window:allow-set-size` in `src-tauri/capabilities/default.json`.
+- Explicit native dragging requires `core:window:allow-start-dragging` in `src-tauri/capabilities/default.json` and should be exposed through the adapter.
 - Transparent macOS HUD windows require both `app.macOSPrivateApi = true` in `tauri.conf.json` and the Rust `tauri/macos-private-api` feature.
 - Themes/shells read status from `BeaconSnapshot` props and CSS data attributes. They must not parse Codex logs, hook files, or process state directly.
 - Status colors and alert effects belong in CSS variables such as `--state-color`, `--state-glow`, and `--state-soft`.

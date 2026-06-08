@@ -88,14 +88,14 @@ button {
 }
 
 .beacon-app {
-  width: min(360px, 100vw);
-  height: min(176px, 100vh);
+  width: min(480px, 100vw);
+  height: min(272px, 100vh);
   background: transparent;
 }
 
 .beacon-app[data-mode="capsule"] {
-  width: min(240px, 100vw);
-  height: min(48px, 100vh);
+  width: min(280px, 100vw);
+  height: min(52px, 100vh);
 }
 
 .beacon-window {
@@ -191,20 +191,27 @@ button {
 .beacon-capsule {
   position: relative;
   z-index: 2;
+  cursor: grab;
+  user-select: none;
+}
+
+.beacon-card:active,
+.beacon-capsule:active {
+  cursor: grabbing;
 }
 
 .beacon-card {
   display: grid;
   height: 100%;
-  grid-template-rows: 38px 70px 1fr;
+  grid-template-rows: 44px 104px minmax(0, 1fr);
 }
 
 .beacon-card-header {
   display: grid;
-  grid-template-columns: 24px 10px minmax(94px, 1fr) 44px 58px 34px 22px;
+  grid-template-columns: 30px 12px minmax(138px, 1fr) 56px 72px 42px 30px;
   align-items: center;
-  gap: 5px;
-  padding: 5px 8px 4px;
+  gap: 8px;
+  padding: 7px 12px 5px;
   -webkit-app-region: drag;
 }
 
@@ -225,8 +232,8 @@ button {
 
 .beacon-icon-button {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   padding: 0;
   color: rgba(229, 231, 235, 0.66);
@@ -235,8 +242,8 @@ button {
 }
 
 .beacon-card-header > .beacon-icon-button:first-child {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--beacon-radius-sm);
   font-size: 13px;
 }
@@ -265,8 +272,8 @@ button {
 }
 
 .beacon-dot {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: var(--beacon-radius-pill);
   background: var(--state-color);
   box-shadow:
@@ -282,10 +289,10 @@ button {
   display: block;
   overflow: hidden;
   color: var(--beacon-text-primary);
-  font-size: var(--beacon-fs-label);
+  font-size: var(--beacon-fs-title);
   font-weight: 600;
   letter-spacing: 0;
-  line-height: 18px;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -296,13 +303,13 @@ button {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  height: 21px;
+  height: 26px;
   padding: 0 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--beacon-radius-pill);
   background: rgba(255, 255, 255, 0.045);
   color: var(--beacon-text-primary);
-  font-size: var(--beacon-fs-caption);
+  font-size: var(--beacon-fs-body);
   line-height: 14px;
   white-space: nowrap;
 }
@@ -322,7 +329,7 @@ button {
 
 .beacon-time {
   color: rgba(229, 231, 235, 0.58);
-  font-size: var(--beacon-fs-caption);
+  font-size: var(--beacon-fs-body);
   font-variant-numeric: tabular-nums;
   line-height: 14px;
   text-align: right;
@@ -331,9 +338,9 @@ button {
 
 .beacon-card-body {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
-  padding: 0 10px;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 14px;
 }
 
 .beacon-radar {
@@ -345,8 +352,8 @@ button {
 
 .beacon-radar::before {
   position: absolute;
-  width: 58px;
-  height: 58px;
+  width: 82px;
+  height: 82px;
   border: 1px solid color-mix(in srgb, var(--state-color) 18%, transparent);
   border-radius: var(--beacon-radius-pill);
   content: "";
@@ -361,7 +368,7 @@ button {
   display: grid;
   min-width: 0;
   align-content: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .beacon-status-copy h1,
@@ -374,22 +381,22 @@ button {
 
 .beacon-status-copy h1 {
   color: #f8fbff;
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 0;
-  line-height: 18px;
+  line-height: 28px;
 }
 
 .beacon-status-copy p {
   color: rgba(229, 231, 235, 0.68);
-  font-size: var(--beacon-fs-body);
-  line-height: 16px;
+  font-size: var(--beacon-fs-label);
+  line-height: 18px;
 }
 
 .beacon-metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  height: 34px;
+  height: 42px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: var(--beacon-radius-md);
@@ -413,7 +420,7 @@ button {
 
 .beacon-metric strong {
   color: var(--beacon-text-primary);
-  font-size: 14px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 16px;
@@ -431,17 +438,17 @@ button {
 
 .beacon-card-footer {
   display: grid;
-  position: relative;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 68px;
-  padding: 0 10px 8px;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 12px 12px;
 }
 
 .beacon-task-list {
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 1px;
+  gap: 3px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: var(--beacon-radius-md);
@@ -450,11 +457,11 @@ button {
 
 .beacon-task-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 68px 42px 10px;
+  grid-template-columns: 18px minmax(0, 1fr) 58px 42px 8px;
   align-items: center;
   min-width: 0;
-  height: 20px;
-  gap: 5px;
+  height: 25px;
+  gap: 7px;
   padding: 0 8px;
   color: rgba(229, 231, 235, 0.76);
   transition: background var(--beacon-motion-fast) var(--beacon-ease-standard);
@@ -513,7 +520,7 @@ button {
 
 .beacon-task-title {
   color: rgba(229, 231, 235, 0.86);
-  font-size: var(--beacon-fs-caption);
+  font-size: var(--beacon-fs-body);
 }
 
 .beacon-task-status {
@@ -530,32 +537,27 @@ button {
 }
 
 .beacon-footer-controls {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
   display: grid;
-  width: 112px;
   align-content: space-between;
+  align-self: stretch;
   gap: 6px;
+  width: 100%;
   min-width: 0;
-  opacity: 0;
-  pointer-events: none;
+  opacity: 0.54;
+  pointer-events: auto;
   transition:
     opacity var(--beacon-motion-fast) var(--beacon-ease-standard),
     transform var(--beacon-motion-fast) var(--beacon-ease-standard);
-  transform: translateY(3px);
 }
 
 .beacon-window:hover .beacon-footer-controls,
 .beacon-footer-controls:focus-within {
-  opacity: 0.9;
-  pointer-events: auto;
-  transform: translateY(0);
+  opacity: 0.92;
 }
 
 .beacon-theme-select {
   width: 100%;
-  height: 24px;
+  height: 30px;
   padding: 0 8px;
   color: rgba(229, 231, 235, 0.72);
   cursor: pointer;
@@ -566,7 +568,7 @@ button {
 .beacon-debug-controls {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
+  gap: 4px;
   overflow: hidden;
   opacity: 0.46;
   transition: opacity var(--beacon-motion-fast) var(--beacon-ease-standard);
@@ -578,7 +580,7 @@ button {
 
 .beacon-debug-controls button {
   min-width: 0;
-  height: 18px;
+  height: 22px;
   padding: 0;
   color: rgba(229, 231, 235, 0.66);
   cursor: pointer;
@@ -606,10 +608,10 @@ button {
 .beacon-capsule {
   display: grid;
   height: 100%;
-  grid-template-columns: 34px 46px 1px minmax(0, 1fr) 28px 22px;
+  grid-template-columns: 38px 52px 1px minmax(0, 1fr) 36px 30px;
   align-items: center;
-  gap: 7px;
-  padding: 4px 8px 4px 6px;
+  gap: 8px;
+  padding: 5px 10px 5px 7px;
   -webkit-app-region: drag;
 }
 
@@ -628,8 +630,8 @@ button {
 
 .beacon-capsule-orb-button {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   padding: 0;
   border-radius: var(--beacon-radius-pill);
@@ -825,6 +827,62 @@ button {
   }
 }
 
+@keyframes beacon-running-edge {
+  0% {
+    opacity: 0.18;
+    transform: translateX(-44%);
+  }
+  45% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0.14;
+    transform: translateX(44%);
+  }
+}
+
+@keyframes beacon-orbit-spin-a {
+  0% {
+    transform: rotate(23deg) scaleX(0.78);
+  }
+  100% {
+    transform: rotate(383deg) scaleX(0.78);
+  }
+}
+
+@keyframes beacon-orbit-spin-b {
+  0% {
+    transform: rotate(-39deg) scaleY(0.72);
+  }
+  100% {
+    transform: rotate(-399deg) scaleY(0.72);
+  }
+}
+
+@keyframes beacon-particle-pulse {
+  0%,
+  100% {
+    opacity: 0.52;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.24);
+  }
+}
+
+@keyframes beacon-dot-pulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+}
+
 @keyframes beacon-halo-pulse {
   0% {
     transform: translate(-50%, -50%) scale(0.94);
@@ -886,6 +944,34 @@ button {
 
 .beacon-orb {
   animation: beacon-orb-breathe 4s var(--beacon-ease-standard) infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-edge-energy {
+  animation: beacon-running-edge 3.4s linear infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-dot {
+  animation: beacon-dot-pulse 1.8s ease-in-out infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-orb-orbit.orbit-a {
+  animation: beacon-orbit-spin-a 5.8s linear infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-orb-orbit.orbit-b {
+  animation: beacon-orbit-spin-b 8.2s linear infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-orb-particle {
+  animation: beacon-particle-pulse 2.2s ease-in-out infinite;
+}
+
+.beacon-window[data-status="running"] .beacon-orb-particle.particle-b {
+  animation-delay: 420ms;
+}
+
+.beacon-window[data-status="running"] .beacon-orb-particle.particle-c {
+  animation-delay: 860ms;
 }
 
 .beacon-window[data-status="waiting_approval"] .beacon-alert-halo,

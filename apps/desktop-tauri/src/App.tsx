@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { PointerEvent } from "react";
 import {
   BeaconSnapshot,
   BeaconSnapshotSource,
@@ -8,6 +9,7 @@ import {
   clearBeaconManualStatus,
   getBeaconSnapshot,
   setBeaconManualStatus,
+  startBeaconWindowDrag,
   setBeaconWindowMode,
   statusOptions,
 } from "./beaconApi";
@@ -129,6 +131,15 @@ function App() {
     }
   }
 
+  async function startWindowDrag() {
+    try {
+      await startBeaconWindowDrag();
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
   useEffect(() => {
     refreshSnapshot();
     void setBeaconWindowMode("card");
@@ -151,6 +162,7 @@ function App() {
       onClearManualStatus={clearManualStatus}
       onSelectTheme={setSelectedTheme}
       onSetManualStatus={setManualStatus}
+      onStartDrag={startWindowDrag}
     />
   );
 }
@@ -165,6 +177,7 @@ function BeaconHUD({
   onClearManualStatus,
   onSelectTheme,
   onSetManualStatus,
+  onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
   error: string | null;
@@ -175,6 +188,7 @@ function BeaconHUD({
   onClearManualStatus: () => void;
   onSelectTheme: (themeId: string) => void;
   onSetManualStatus: (status: CodexTaskStatus) => void;
+  onStartDrag: () => void;
 }) {
   return (
     <main className={`beacon-app theme-${selectedTheme}`} data-mode={viewMode}>
@@ -195,9 +209,15 @@ function BeaconHUD({
             onClearManualStatus={onClearManualStatus}
             onSelectTheme={onSelectTheme}
             onSetManualStatus={onSetManualStatus}
+            onStartDrag={onStartDrag}
           />
         ) : (
-          <BeaconCapsule snapshot={snapshot} onRefresh={onRefresh} onToggleViewMode={onToggleViewMode} />
+          <BeaconCapsule
+            snapshot={snapshot}
+            onRefresh={onRefresh}
+            onToggleViewMode={onToggleViewMode}
+            onStartDrag={onStartDrag}
+          />
         )}
       </section>
     </main>
@@ -213,6 +233,7 @@ function BeaconCard({
   onClearManualStatus,
   onSelectTheme,
   onSetManualStatus,
+  onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
   error: string | null;
@@ -222,11 +243,16 @@ function BeaconCard({
   onClearManualStatus: () => void;
   onSelectTheme: (themeId: string) => void;
   onSetManualStatus: (status: CodexTaskStatus) => void;
+  onStartDrag: () => void;
 }) {
   const visibleTasks = useMemo(() => visibleTaskRows(snapshot), [snapshot]);
 
   return (
-    <article className="beacon-card">
+    <article
+      className="beacon-card"
+      data-tauri-drag-region
+      onPointerDown={(event) => handleDragPointerDown(event, onStartDrag)}
+    >
       <header className="beacon-card-header" data-tauri-drag-region>
         <button
           className="beacon-icon-button"
@@ -282,13 +308,20 @@ function BeaconCapsule({
   snapshot,
   onRefresh,
   onToggleViewMode,
+  onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
   onRefresh: () => void;
   onToggleViewMode: () => void;
+  onStartDrag: () => void;
 }) {
   return (
-    <article className="beacon-capsule" data-tauri-drag-region onDoubleClick={onToggleViewMode}>
+    <article
+      className="beacon-capsule"
+      data-tauri-drag-region
+      onDoubleClick={onToggleViewMode}
+      onPointerDown={(event) => handleDragPointerDown(event, onStartDrag)}
+    >
       <button
         className="beacon-capsule-orb-button"
         type="button"
@@ -453,7 +486,22 @@ function visibleTaskRows(snapshot: BeaconSnapshot) {
 
   return [...tasks]
     .sort((left, right) => statusPriority[right.status] - statusPriority[left.status])
-    .slice(0, 3);
+    .slice(0, 4);
+}
+
+function handleDragPointerDown(event: PointerEvent<HTMLElement>, onStartDrag: () => void) {
+  if (event.button !== 0 || isInteractiveDragTarget(event.target)) {
+    return;
+  }
+
+  onStartDrag();
+}
+
+function isInteractiveDragTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(target.closest("button, select, option, input, textarea, [data-no-drag]"))
+  );
 }
 
 function statusHeadline(snapshot: BeaconSnapshot) {

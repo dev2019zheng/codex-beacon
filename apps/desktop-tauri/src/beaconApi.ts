@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
 export type CodexTaskStatus =
   | "running"
@@ -90,10 +91,21 @@ export async function clearBeaconManualStatus() {
 
 export async function setBeaconWindowMode(mode: BeaconViewMode) {
   try {
-    const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
-    const size = mode === "card" ? new LogicalSize(360, 176) : new LogicalSize(240, 48);
+    const size = mode === "card" ? new LogicalSize(480, 272) : new LogicalSize(280, 52);
 
     await getCurrentWindow().setSize(size);
+  } catch (cause) {
+    if (isMissingTauriRuntimeError(cause)) {
+      return;
+    }
+
+    throw cause;
+  }
+}
+
+export async function startBeaconWindowDrag() {
+  try {
+    await getCurrentWindow().startDragging();
   } catch (cause) {
     if (isMissingTauriRuntimeError(cause)) {
       return;
@@ -147,6 +159,8 @@ function tasksForStatus(status: CodexTaskStatus, updatedAt: string): CodexTaskSn
       return [
         task("task-frontend", "悬浮窗外壳", "running", "正在渲染状态视图", updatedAt),
         task("task-core", "Rust 状态核心", "running", "正在归一化 Codex 状态", updatedAt),
+        task("task-release", "预览版发布流程", "running", "正在准备 macOS 产物", updatedAt),
+        task("task-theme", "主题提醒动效", "running", "正在同步 HUD shell", updatedAt),
       ];
     case "waiting_approval":
       return [
