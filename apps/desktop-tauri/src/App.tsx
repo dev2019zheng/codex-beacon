@@ -94,14 +94,18 @@ function App() {
   const [viewMode, setViewMode] = useState<BeaconViewMode>("card");
   const [selectedTheme, setSelectedTheme] = useState("minimal-card");
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   async function refreshSnapshot() {
+    setIsRefreshing(true);
     try {
       const next = await getBeaconSnapshot();
       setSnapshot(next);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setIsRefreshing(false);
     }
   }
 
@@ -141,6 +145,7 @@ function App() {
       error={error}
       viewMode={viewMode}
       selectedTheme={selectedTheme}
+      isRefreshing={isRefreshing}
       onRefresh={refreshSnapshot}
       onToggleViewMode={toggleViewMode}
       onSelectTheme={setSelectedTheme}
@@ -154,6 +159,7 @@ function BeaconHUD({
   error,
   viewMode,
   selectedTheme,
+  isRefreshing,
   onRefresh,
   onToggleViewMode,
   onSelectTheme,
@@ -163,6 +169,7 @@ function BeaconHUD({
   error: string | null;
   viewMode: BeaconViewMode;
   selectedTheme: string;
+  isRefreshing: boolean;
   onRefresh: () => void;
   onToggleViewMode: () => void;
   onSelectTheme: (themeId: string) => void;
@@ -182,6 +189,7 @@ function BeaconHUD({
             snapshot={snapshot}
             error={error}
             selectedTheme={selectedTheme}
+            isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             onToggleViewMode={onToggleViewMode}
             onSelectTheme={onSelectTheme}
@@ -190,6 +198,7 @@ function BeaconHUD({
         ) : (
           <BeaconCapsule
             snapshot={snapshot}
+            isRefreshing={isRefreshing}
             onRefresh={onRefresh}
             onToggleViewMode={onToggleViewMode}
             onStartDrag={onStartDrag}
@@ -204,6 +213,7 @@ function BeaconCard({
   snapshot,
   error,
   selectedTheme,
+  isRefreshing,
   onRefresh,
   onToggleViewMode,
   onSelectTheme,
@@ -212,6 +222,7 @@ function BeaconCard({
   snapshot: BeaconSnapshot;
   error: string | null;
   selectedTheme: string;
+  isRefreshing: boolean;
   onRefresh: () => void;
   onToggleViewMode: () => void;
   onSelectTheme: (themeId: string) => void;
@@ -244,7 +255,16 @@ function BeaconCard({
         <time className="beacon-time" dateTime={snapshot.updatedAt}>
           {formatRelativeTime(snapshot.updatedAt)}
         </time>
-        <button className="beacon-icon-button" type="button" title="刷新状态" aria-label="刷新状态" onClick={onRefresh}>
+        <button
+          className="beacon-icon-button"
+          type="button"
+          title="刷新状态"
+          aria-label="刷新状态"
+          aria-busy={isRefreshing}
+          data-refreshing={isRefreshing ? "true" : "false"}
+          disabled={isRefreshing}
+          onClick={onRefresh}
+        >
           ↻
         </button>
       </header>
@@ -276,11 +296,13 @@ function BeaconCard({
 
 function BeaconCapsule({
   snapshot,
+  isRefreshing,
   onRefresh,
   onToggleViewMode,
   onStartDrag,
 }: {
   snapshot: BeaconSnapshot;
+  isRefreshing: boolean;
   onRefresh: () => void;
   onToggleViewMode: () => void;
   onStartDrag: () => void;
@@ -307,7 +329,16 @@ function BeaconCapsule({
       <time className="beacon-time" dateTime={snapshot.updatedAt}>
         {formatRelativeTime(snapshot.updatedAt)}
       </time>
-      <button className="beacon-icon-button" type="button" title="刷新状态" aria-label="刷新状态" onClick={onRefresh}>
+      <button
+        className="beacon-icon-button"
+        type="button"
+        title="刷新状态"
+        aria-label="刷新状态"
+        aria-busy={isRefreshing}
+        data-refreshing={isRefreshing ? "true" : "false"}
+        disabled={isRefreshing}
+        onClick={onRefresh}
+      >
         ↻
       </button>
     </article>

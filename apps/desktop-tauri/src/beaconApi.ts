@@ -53,9 +53,11 @@ const browserStatusSequence: CodexTaskStatus[] = [
 ];
 
 let browserTick = 0;
+let refreshNonce = 0;
 
 export async function getBeaconSnapshot() {
-  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("get_beacon_snapshot");
+  refreshNonce += 1;
+  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("get_beacon_snapshot", { refreshNonce });
   if (tauriSnapshot) {
     return tauriSnapshot;
   }

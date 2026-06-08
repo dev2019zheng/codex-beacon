@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Run Rust fmt/tests for Tauri source changes"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Run frontend typecheck/build and Tauri app check"}

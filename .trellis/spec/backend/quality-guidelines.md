@@ -88,3 +88,68 @@ React component reads ~/.codex-beacon/events.jsonl directly and derives status.
 ```text
 Hook recorder writes sanitized JSONL -> Rust core derives BeaconSnapshot -> Tauri command exposes the snapshot.
 ```
+
+## Scenario: Codex Desktop Live Refresh Source
+
+### 1. Scope / Trigger
+
+- Trigger: any change to Codex Desktop local-state polling, Tauri snapshot commands, or refresh semantics.
+- Goal: manual refresh and polling must observe current Codex Desktop SQLite/WAL state without restarting the HUD.
+
+### 2. Signatures
+
+- Tauri command: `get_beacon_snapshot(refreshNonce?: number) -> BeaconSnapshot`.
+- State DB path: `CODEX_BEACON_CODEX_STATE_DB` override or latest `~/.codex/state_*.sqlite`.
+- Logs DB path: `CODEX_BEACON_CODEX_LOGS_DB` override or latest `~/.codex/logs_*.sqlite`.
+- Source helper: `recent_codex_activity(logs_path, now) -> HashMap<thread_id, CodexThreadActivity>`.
+- Merge helper: `codex_app_tasks_from_state(state_path, active_threads, allow_recent_state_fallback, now) -> Vec<CodexAppTask>`.
+
+### 3. Contracts
+
+- Open SQLite read-only on every snapshot call; do not keep a long-lived connection for the live source.
+- The frontend adapter must pass a changing `refreshNonce` so each manual refresh has a distinct IPC payload.
+- Active activity is derived from recent semantic logs containing `run_sampling_request` or `session_task.turn`.
+- Exit markers are `target = 'codex_core::session::handlers'` plus `feedback_log_body LIKE '%}: Agent loop exited'`.
+- A thread is active only when recent log activity is inside the active window and the thread state update is newer than any later exit marker.
+- Task `updated_at` must prefer the latest log activity time over `threads.updated_at_ms`, so the HUD's relative time changes as Codex continues working.
+- If the logs DB is missing, fall back to recent `threads.updated_at_ms`; if logs exist but a thread has no active activity, do not treat state recency alone as active.
+
+### 4. Validation & Error Matrix
+
+- Missing state DB -> fall back to hook snapshot.
+- Missing logs DB -> allow short state-table fallback.
+- Existing logs DB plus no recent activity -> return a Codex Desktop idle snapshot.
+- Agent exit after the latest state update -> do not show the thread as running.
+- Tail logs after exit -> do not revive a stopped task unless thread state is updated after the exit.
+- New turn after exit -> show running again and update the task timestamp.
+
+### 5. Good/Base/Bad Cases
+
+- Good: clicking refresh after Codex writes new logs changes `BeaconSnapshot.updatedAt` and task row relative times.
+- Base: an active thread with recent `session_task.turn` logs appears as one running Codex task.
+- Bad: a HUD refresh reads only `threads.updated_at_ms` or uses a cached SQLite connection and keeps showing the startup snapshot.
+
+### 6. Tests Required
+
+- Rust unit test where latest log activity makes a stale state-table timestamp display as fresh.
+- Rust unit test where `Agent loop exited` suppresses a thread even when older turn logs exist.
+- Rust unit test where a new turn after an exit reactivates the thread.
+- Frontend typecheck/build after changing IPC args or adapter signatures.
+- Tauri app bundle build after changing command signatures.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```rust
+let updated_at = millis_to_datetime(updated_at_ms, now);
+```
+
+#### Correct
+
+```rust
+let display_updated_at_ms = activity
+    .map(|activity| activity.last_activity_ms.max(updated_at_ms))
+    .unwrap_or(updated_at_ms);
+let updated_at = millis_to_datetime(display_updated_at_ms, now);
+```

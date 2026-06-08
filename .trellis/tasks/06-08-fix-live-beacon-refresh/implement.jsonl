@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Rust Tauri state source and command refresh semantics"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "SQLite read path affected by Codex Desktop WAL state"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Tauri IPC payload and adapter types"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "HUD refresh shell contract"}

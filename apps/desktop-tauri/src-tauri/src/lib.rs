@@ -13,13 +13,20 @@ use chrono::TimeZone;
 use rusqlite::{Connection, OpenFlags};
 
 const CODEX_ACTIVE_WINDOW_SECONDS: i64 = 10 * 60;
-const CODEX_EXIT_SETTLE_SECONDS: i64 = 15;
+const CODEX_MARKER_WINDOW_SECONDS: i64 = 24 * 60 * 60;
 const CODEX_UPDATED_FALLBACK_SECONDS: i64 = 2 * 60;
 const CODEX_THREAD_QUERY_LIMIT: i64 = 50;
 const CODEX_TASK_DISPLAY_LIMIT: usize = 5;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CodexThreadActivity {
+    last_activity_ms: i64,
+    last_exit_ms: Option<i64>,
+}
+
 #[tauri::command]
-fn get_beacon_snapshot() -> BeaconSnapshot {
+fn get_beacon_snapshot(refresh_nonce: Option<u64>) -> BeaconSnapshot {
+    let _ = refresh_nonce;
     automatic_snapshot(chrono::Utc::now())
 }
 
@@ -58,49 +65,59 @@ fn snapshot_from_hook_log(now: chrono::DateTime<chrono::Utc>) -> BeaconSnapshot 
 fn recent_codex_activity(
     logs_path: &Path,
     now: chrono::DateTime<chrono::Utc>,
-) -> rusqlite::Result<HashMap<String, i64>> {
+) -> rusqlite::Result<HashMap<String, CodexThreadActivity>> {
     if !logs_path.is_file() {
         return Ok(HashMap::new());
     }
 
     let conn = open_readonly_sqlite(logs_path)?;
     let cutoff_seconds = now.timestamp() - CODEX_ACTIVE_WINDOW_SECONDS;
-    let exit_settle_ms = CODEX_EXIT_SETTLE_SECONDS * 1000;
+    let marker_cutoff_seconds = now.timestamp() - CODEX_MARKER_WINDOW_SECONDS;
     let mut stmt = conn.prepare(
         r#"
-        WITH thread_markers AS (
+        WITH recent_activity AS (
             SELECT
                 thread_id,
-                MAX(ts * 1000 + ts_nanos / 1000000) AS last_activity_ms,
-                MAX(
-                    CASE
-                        WHEN target = 'codex_core::session::handlers'
-                         AND feedback_log_body LIKE '%}: Agent loop exited'
-                        THEN ts * 1000 + ts_nanos / 1000000
-                    END
-                ) AS last_exit_ms
+                MAX(ts * 1000 + ts_nanos / 1000000) AS last_activity_ms
             FROM logs
             WHERE thread_id IS NOT NULL
               AND ts >= ?1
               AND (
                 feedback_log_body LIKE '%run_sampling_request%'
                 OR feedback_log_body LIKE '%session_task.turn%'
-                OR (
-                    target = 'codex_core::session::handlers'
-                    AND feedback_log_body LIKE '%}: Agent loop exited'
-                )
               )
             GROUP BY thread_id
+        ),
+        thread_markers AS (
+            SELECT
+                recent_activity.thread_id,
+                recent_activity.last_activity_ms,
+                (
+                    SELECT MAX(exit_logs.ts * 1000 + exit_logs.ts_nanos / 1000000)
+                    FROM logs AS exit_logs
+                    WHERE exit_logs.thread_id = recent_activity.thread_id
+                      AND exit_logs.ts >= ?2
+                      AND exit_logs.target = 'codex_core::session::handlers'
+                      AND exit_logs.feedback_log_body LIKE '%}: Agent loop exited'
+                )
+                AS last_exit_ms
+            FROM recent_activity
         )
-        SELECT thread_id, last_activity_ms
+        SELECT thread_id, last_activity_ms, last_exit_ms
         FROM thread_markers
-        WHERE last_activity_ms > COALESCE(last_exit_ms + ?2, 0)
         "#,
     )?;
-    let rows = stmt.query_map((cutoff_seconds, exit_settle_ms), |row| {
+    let rows = stmt.query_map((cutoff_seconds, marker_cutoff_seconds), |row| {
         let thread_id: String = row.get(0)?;
         let last_activity_ms: i64 = row.get(1)?;
-        Ok((thread_id, last_activity_ms))
+        let last_exit_ms: Option<i64> = row.get(2)?;
+        Ok((
+            thread_id,
+            CodexThreadActivity {
+                last_activity_ms,
+                last_exit_ms,
+            },
+        ))
     })?;
 
     rows.collect()
@@ -108,7 +125,7 @@ fn recent_codex_activity(
 
 fn codex_app_tasks_from_state(
     state_path: &Path,
-    active_threads: &HashMap<String, i64>,
+    active_threads: &HashMap<String, CodexThreadActivity>,
     allow_recent_state_fallback: bool,
     now: chrono::DateTime<chrono::Utc>,
 ) -> rusqlite::Result<Vec<CodexAppTask>> {
@@ -136,9 +153,9 @@ fn codex_app_tasks_from_state(
     let mut tasks = Vec::new();
     for row in rows {
         let (id, title, cwd, updated_at_ms) = row?;
-        let is_active_from_logs = active_threads
-            .get(&id)
-            .is_some_and(|last_activity_ms| *last_activity_ms >= active_cutoff_ms);
+        let activity = active_threads.get(&id).copied();
+        let is_active_from_logs = activity
+            .is_some_and(|activity| is_active_activity(activity, updated_at_ms, active_cutoff_ms));
         let is_recent_from_state =
             allow_recent_state_fallback && updated_at_ms >= fallback_cutoff_ms;
 
@@ -146,11 +163,15 @@ fn codex_app_tasks_from_state(
             continue;
         }
 
+        let display_updated_at_ms = activity
+            .map(|activity| activity.last_activity_ms.max(updated_at_ms))
+            .unwrap_or(updated_at_ms);
+
         tasks.push(CodexAppTask {
             id,
             title,
             workspace: Some(cwd),
-            updated_at: millis_to_datetime(updated_at_ms, now),
+            updated_at: millis_to_datetime(display_updated_at_ms, now),
         });
 
         if tasks.len() >= CODEX_TASK_DISPLAY_LIMIT {
@@ -159,6 +180,22 @@ fn codex_app_tasks_from_state(
     }
 
     Ok(tasks)
+}
+
+fn is_active_activity(
+    activity: CodexThreadActivity,
+    state_updated_at_ms: i64,
+    active_cutoff_ms: i64,
+) -> bool {
+    if activity.last_activity_ms < active_cutoff_ms {
+        return false;
+    }
+
+    let Some(last_exit_ms) = activity.last_exit_ms else {
+        return true;
+    };
+
+    activity.last_activity_ms > last_exit_ms && state_updated_at_ms > last_exit_ms
 }
 
 fn open_readonly_sqlite(path: &Path) -> rusqlite::Result<Connection> {
@@ -273,6 +310,10 @@ mod tests {
             tasks[0].workspace.as_deref(),
             Some("/Users/example/codex-beacon")
         );
+        assert_eq!(
+            tasks[0].updated_at.timestamp_millis(),
+            now.timestamp_millis()
+        );
 
         fs::remove_file(state_path).ok();
         fs::remove_file(logs_path).ok();
@@ -330,7 +371,7 @@ mod tests {
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
         let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
 
-        assert!(active_threads.is_empty());
+        assert!(active_threads.contains_key("thread-finished"));
         assert!(tasks.is_empty());
 
         fs::remove_file(state_path).ok();
@@ -384,13 +425,13 @@ mod tests {
             &logs_conn,
             "thread-chat",
             now.timestamp() - 5,
-            "session_task.turn receiving_stream",
+            &active_turn_log_body("thread-chat"),
         );
         insert_log(
             &logs_conn,
             "thread-project",
             now.timestamp() - 5,
-            "session_task.turn receiving_stream",
+            &active_turn_log_body("thread-project"),
         );
 
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
@@ -435,7 +476,7 @@ mod tests {
             "Stopped task with tail logs",
             "/Users/example/codex-beacon",
             "user",
-            now.timestamp_millis() - 1_000,
+            now.timestamp_millis() - 5_000,
         );
 
         let logs_conn = Connection::open(&logs_path).unwrap();
@@ -444,7 +485,7 @@ mod tests {
             &logs_conn,
             "thread-tail",
             now.timestamp() - 10,
-            "session_task.turn run_sampling_request",
+            &active_turn_log_body("thread-tail"),
         );
         insert_log_with_target(
             &logs_conn,
@@ -463,7 +504,7 @@ mod tests {
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
         let tasks = codex_app_tasks_from_state(&state_path, &active_threads, false, now).unwrap();
 
-        assert!(active_threads.is_empty());
+        assert!(active_threads.contains_key("thread-tail"));
         assert!(tasks.is_empty());
 
         fs::remove_file(state_path).ok();
@@ -516,7 +557,7 @@ mod tests {
             &logs_conn,
             "thread-reactivated",
             now.timestamp() - 1,
-            "session_task.turn run_sampling_request",
+            &active_turn_log_body("thread-reactivated"),
         );
 
         let active_threads = recent_codex_activity(&logs_path, now).unwrap();
@@ -597,8 +638,8 @@ mod tests {
         insert_log(
             &conn,
             "thread-active",
-            now.timestamp() - 5,
-            "session_task.turn receiving_stream",
+            now.timestamp(),
+            &active_turn_log_body("thread-active"),
         );
         insert_log(
             &conn,
@@ -610,8 +651,14 @@ mod tests {
             &conn,
             "thread-subagent",
             now.timestamp() - 5,
-            "session_task.turn receiving_stream",
+            &active_turn_log_body("thread-subagent"),
         );
+    }
+
+    fn active_turn_log_body(thread_id: &str) -> String {
+        format!(
+            "session_loop{{thread_id={thread_id}}}:submission_dispatch{{otel.name=\"op.dispatch.user_input\" codex.op=\"user_input\"}}:turn{{otel.name=\"session_task.turn\" thread.id={thread_id}}}:run_turn:run_sampling_request"
+        )
     }
 
     fn insert_thread(

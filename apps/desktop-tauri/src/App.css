@@ -260,6 +260,17 @@ button {
   transform: scale(0.96);
 }
 
+.beacon-icon-button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.beacon-icon-button[data-refreshing="true"] {
+  border-color: color-mix(in srgb, var(--state-color) 26%, rgba(255, 255, 255, 0.12));
+  color: color-mix(in srgb, var(--state-color) 72%, white);
+  animation: beacon-refresh-spin 820ms linear infinite;
+}
+
 .beacon-icon-button:focus-visible,
 .beacon-capsule-orb-button:focus-visible,
 .beacon-theme-select:focus-visible {
@@ -939,6 +950,15 @@ button {
   }
   50% {
     opacity: 0.48;
+  }
+}
+
+@keyframes beacon-refresh-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 
