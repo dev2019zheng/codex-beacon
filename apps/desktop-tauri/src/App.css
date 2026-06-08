@@ -88,9 +88,14 @@ button {
 }
 
 .beacon-app {
-  width: 100vw;
-  height: 100vh;
+  width: min(360px, 100vw);
+  height: min(176px, 100vh);
   background: transparent;
+}
+
+.beacon-app[data-mode="capsule"] {
+  width: min(240px, 100vw);
+  height: min(48px, 100vh);
 }
 
 .beacon-window {

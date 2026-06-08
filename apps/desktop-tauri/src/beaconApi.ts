@@ -51,13 +51,13 @@ export const statusOptions: CodexTaskStatus[] = [
   "unknown",
 ];
 
-const hasTauriRuntime = "__TAURI_INTERNALS__" in window;
 let browserTick = 0;
 let browserManualStatus: CodexTaskStatus | null = null;
 
 export async function getBeaconSnapshot() {
-  if (hasTauriRuntime) {
-    return invoke<BeaconSnapshot>("get_beacon_snapshot");
+  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("get_beacon_snapshot");
+  if (tauriSnapshot) {
+    return tauriSnapshot;
   }
 
   const status = browserManualStatus ?? statusOptions[browserTick % 5];
@@ -68,8 +68,9 @@ export async function getBeaconSnapshot() {
 }
 
 export async function setBeaconManualStatus(status: CodexTaskStatus) {
-  if (hasTauriRuntime) {
-    return invoke<BeaconSnapshot>("set_manual_status", { status });
+  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("set_manual_status", { status });
+  if (tauriSnapshot) {
+    return tauriSnapshot;
   }
 
   browserManualStatus = status;
@@ -77,8 +78,9 @@ export async function setBeaconManualStatus(status: CodexTaskStatus) {
 }
 
 export async function clearBeaconManualStatus() {
-  if (hasTauriRuntime) {
-    return invoke<BeaconSnapshot>("clear_manual_status");
+  const tauriSnapshot = await invokeTauriOrNull<BeaconSnapshot>("clear_manual_status");
+  if (tauriSnapshot) {
+    return tauriSnapshot;
   }
 
   browserManualStatus = null;
@@ -87,17 +89,18 @@ export async function clearBeaconManualStatus() {
 }
 
 export async function setBeaconWindowMode(mode: BeaconViewMode) {
-  if (!hasTauriRuntime) {
-    return;
+  try {
+    const { getCurrentWindow, LogicalSize } = await import("@tauri-apps/api/window");
+    const size = mode === "card" ? new LogicalSize(360, 176) : new LogicalSize(240, 48);
+
+    await getCurrentWindow().setSize(size);
+  } catch (cause) {
+    if (isMissingTauriRuntimeError(cause)) {
+      return;
+    }
+
+    throw cause;
   }
-
-  const [{ getCurrentWindow }, { LogicalSize }] = await Promise.all([
-    import("@tauri-apps/api/window"),
-    import("@tauri-apps/api/dpi"),
-  ]);
-  const size = mode === "card" ? new LogicalSize(360, 176) : new LogicalSize(240, 48);
-
-  await getCurrentWindow().setSize(size);
 }
 
 function browserSnapshot(status: CodexTaskStatus, source: BeaconSnapshotSource): BeaconSnapshot {
@@ -191,4 +194,27 @@ function alertLevelForStatus(status: CodexTaskStatus): AlertLevel {
     case "unknown":
       return "silent";
   }
+}
+
+async function invokeTauriOrNull<T>(command: string, args?: Record<string, unknown>): Promise<T | null> {
+  try {
+    return await invoke<T>(command, args);
+  } catch (cause) {
+    if (isMissingTauriRuntimeError(cause)) {
+      return null;
+    }
+
+    throw cause;
+  }
+}
+
+function isMissingTauriRuntimeError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause);
+
+  return (
+    message.includes("__TAURI_INTERNALS__") ||
+    message.includes("__TAURI_IPC__") ||
+    message.includes("reading 'invoke'") ||
+    message.includes('reading "invoke"')
+  );
 }

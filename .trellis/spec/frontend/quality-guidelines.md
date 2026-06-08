@@ -47,13 +47,16 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 
 - Card mode target size is `360x176`; capsule mode target size is `240x48`.
 - Tauri window APIs stay behind `beaconApi.ts`; React components should call the adapter, not import Tauri window modules directly.
+- Tauri capsule resizing requires `core:window:allow-set-size` in `src-tauri/capabilities/default.json`.
+- Transparent macOS HUD windows require both `app.macOSPrivateApi = true` in `tauri.conf.json` and the Rust `tauri/macos-private-api` feature.
 - Themes/shells read status from `BeaconSnapshot` props and CSS data attributes. They must not parse Codex logs, hook files, or process state directly.
 - Status colors and alert effects belong in CSS variables such as `--state-color`, `--state-glow`, and `--state-soft`.
 
 ### 4. Validation & Error Matrix
 
-- Missing Tauri runtime -> browser fallback returns a simulated snapshot and `setBeaconWindowMode` is a no-op.
+- Missing Tauri runtime -> browser fallback returns a simulated snapshot and `setBeaconWindowMode` is a no-op, including browser errors such as missing `__TAURI_INTERNALS__`, `__TAURI_IPC__`, or `invoke`.
 - Window resize failure -> keep the current React mode visible and surface the error through the shell error slot.
+- Missing/empty hook event log in Tauri -> render a hooks-sourced `unknown` snapshot, not `idle`, so setup failures are visible.
 - Long title/detail text -> truncate inside its row; the HUD window must not grow or wrap unpredictably.
 - Empty task list -> render an idle/empty affordance instead of blank space.
 
@@ -68,6 +71,7 @@ The HUD is a compact utility surface. It should stay dense, readable, and stable
 - Run `pnpm --filter @codex-beacon/desktop typecheck`.
 - Run `pnpm --filter @codex-beacon/desktop build`.
 - Run `pnpm --filter @codex-beacon/desktop tauri:build --bundles app` when native window sizing or Tauri config changes.
+- Run `cargo test --workspace` when changing hook snapshot semantics.
 - Capture/inspect card and capsule previews after visual changes.
 
 ### 7. Wrong vs Correct

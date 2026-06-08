@@ -218,8 +218,14 @@ pub fn parse_hook_events_jsonl(input: &str) -> Vec<CodexHookEvent> {
 pub fn snapshot_from_hook_events(events: &[CodexHookEvent], now: DateTime<Utc>) -> BeaconSnapshot {
     let Some(latest) = events.iter().max_by_key(|event| event.timestamp) else {
         return snapshot_from_tasks(
-            CodexTaskStatus::Idle,
-            Vec::new(),
+            CodexTaskStatus::Unknown,
+            vec![task(
+                "hook-source",
+                "Codex hooks",
+                CodexTaskStatus::Unknown,
+                "No Codex hook events found. Enable or trust project hooks to connect real status.",
+                now,
+            )],
             now,
             BeaconSnapshotSource::Hooks,
         );
@@ -418,6 +424,21 @@ mod tests {
         assert_eq!(snapshot.overall_status, CodexTaskStatus::WaitingApproval);
         assert_eq!(snapshot.alert_level, AlertLevel::Strong);
         assert_eq!(snapshot.waiting_count, 1);
+    }
+
+    #[test]
+    fn empty_hook_events_return_unknown_connection_snapshot() {
+        let now = DateTime::parse_from_rfc3339("2026-06-08T08:01:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+
+        let snapshot = snapshot_from_hook_events(&[], now);
+
+        assert_eq!(snapshot.source, BeaconSnapshotSource::Hooks);
+        assert_eq!(snapshot.overall_status, CodexTaskStatus::Unknown);
+        assert_eq!(snapshot.alert_level, AlertLevel::Silent);
+        assert_eq!(snapshot.tasks.len(), 1);
+        assert_eq!(snapshot.tasks[0].id, "hook-source");
     }
 
     #[test]

@@ -27,16 +27,18 @@ Wire Codex Beacon to a first real local status source: Codex project hooks recor
 - Update Tauri command handling to prefer hook-derived snapshots when no manual demo status is selected.
 - Keep browser preview/demo mode working without Tauri.
 - Surface snapshot source lightly in the UI so the user can distinguish hooks, manual demo, and browser simulation.
+- If the hook log is missing or empty, surface `unknown` instead of `idle` so the user can tell real Codex status is not connected yet.
+- Keep card/capsule window sizing compatible with Tauri v2 capabilities and macOS transparent windows.
 - Document how the real status source works and how to override the event log path.
 
 ## Acceptance Criteria
 
-- [ ] Running the hook recorder self-test writes a sanitized JSONL event.
-- [ ] Rust unit tests cover hook event parsing/status synthesis.
-- [ ] Desktop app builds and typechecks after adding the real source field.
-- [ ] If the hook log is absent or empty, the Tauri app returns a stable idle/unknown snapshot instead of failing.
-- [ ] Manual status controls still work for theme and alert testing.
-- [ ] The existing Trellis `UserPromptSubmit` hook remains configured.
+- [x] Running the hook recorder self-test writes a sanitized JSONL event.
+- [x] Rust unit tests cover hook event parsing/status synthesis.
+- [x] Desktop app builds and typechecks after adding the real source field.
+- [x] If the hook log is absent or empty, the Tauri app returns a stable idle/unknown snapshot instead of failing.
+- [x] Manual status controls still work for theme and alert testing.
+- [x] The existing Trellis `UserPromptSubmit` hook remains configured.
 
 ## Definition of Done
 
@@ -60,6 +62,7 @@ Wire Codex Beacon to a first real local status source: Codex project hooks recor
 ## Technical Notes
 
 - `core/beacon-core/src/lib.rs` currently owns snapshot structs, simulated state, and alert priority.
-- `apps/desktop-tauri/src-tauri/src/lib.rs` currently owns Tauri commands and simulated tick state.
+- `apps/desktop-tauri/src-tauri/src/lib.rs` currently owns Tauri commands and hook-log fallback behavior.
 - `apps/desktop-tauri/src/beaconApi.ts` mirrors the Rust snapshot contract for the React shell and browser preview.
-- `.codex/hooks.json` currently contains only the Trellis `UserPromptSubmit` command.
+- `.codex/hooks.json` records Beacon lifecycle events and preserves the Trellis `UserPromptSubmit` injection hook.
+- `apps/desktop-tauri/src-tauri/capabilities/default.json` must allow `core:window:allow-set-size` for card/capsule resizing.

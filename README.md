@@ -23,7 +23,7 @@ Set `CODEX_BEACON_EVENT_LOG=/custom/path/events.jsonl` to override the path for 
 
 The repo-level `.codex/hooks.json` records `SessionStart`, `UserPromptSubmit`, tool activity, and `Stop` events through `.codex/hooks/beacon-record-event.py`. The recorder stores only safe metadata such as event name, timestamp, session id, cwd, tool name, and a short summary. It does not persist prompts, tool arguments, command output, or Codex responses.
 
-If the hook log is missing or empty, the desktop shell shows an idle hooks snapshot. The browser preview keeps a simulated source so UI work remains possible without a Tauri runtime.
+If the hook log is missing or empty, the desktop shell shows an unknown hooks snapshot so it is clear that real Codex status is not connected yet. The browser preview keeps a simulated source so UI work remains possible without a Tauri runtime.
 
 ## Run
 
